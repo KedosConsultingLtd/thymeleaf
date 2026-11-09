@@ -19,8 +19,8 @@ The group id stays `org.thymeleaf`, so an application only changes the version (
 ## Releasing a build
 
 ```bash
-git tag kedos-3.1.6.KEDOS-1 <commit>
-git push origin kedos-3.1.6.KEDOS-1
+git tag 3.1.6.KEDOS-1 <commit>      # the tag is the version
+git push origin 3.1.6.KEDOS-1
 ```
 
 The `kedos-publish` workflow (`.github/workflows/kedos-publish.yml`) then:
