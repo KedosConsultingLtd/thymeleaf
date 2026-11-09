@@ -289,13 +289,24 @@ public final class ExpressionUtils {
     }
 
 
+    /*
+     * Kedos: whether a type's members need checking at all (its package is blocked, or it implements a blocked
+     * interface). This is a pure function of the class and is evaluated on every property access and method call
+     * in expressions, so it is computed once per class instead of with a stream pipeline on every call.
+     */
+    private static final ClassValue<Boolean> MEMBER_CHECK_REQUIRED = new ClassValue<Boolean>() {
+        @Override
+        protected Boolean computeValue(final Class<?> type) {
+            return Boolean.valueOf(isTypeBlockedForAllPurposes(type.getName()) || isTypeBlockedForMemberCalls(type));
+        }
+    };
+
+
     static boolean isMemberForbiddenForInstanceOfType(final Class<?> type, final String memberName) {
 
         Validate.notNull(type, "Type cannot be null");
 
-        final String typeName = type.getName();
-
-        if (!isTypeBlockedForAllPurposes(typeName) && !isTypeBlockedForMemberCalls(type)) {
+        if (!MEMBER_CHECK_REQUIRED.get(type).booleanValue()) {
             return false;
         }
 
