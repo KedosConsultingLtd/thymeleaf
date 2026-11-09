@@ -19,11 +19,9 @@
  */
 package org.thymeleaf.linkbuilder;
 
-import java.util.HashSet;
-import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.thymeleaf.context.Contexts;
 import org.thymeleaf.context.IExpressionContext;
@@ -88,8 +86,9 @@ public class StandardLinkBuilder extends AbstractLinkBuilder {
         }
 
         // We need to create a copy that is: 1. defensive, 2. mutable
-        final Map<String,Object> linkParameters =
-                (parameters == null || parameters.size() == 0? null : new LinkedHashMap<String, Object>(parameters));
+        // Kedos: parameters are only read, never modified, so no defensive copy is needed. Parameters used as path
+        // variables are recorded in 'pathVariableNames' and skipped when building the query string.
+        final Map<String,Object> linkParameters = (parameters == null || parameters.size() == 0? null : parameters);
 
         filterOutJavaScriptLinks(base);
 
@@ -146,84 +145,58 @@ public class StandardLinkBuilder extends AbstractLinkBuilder {
          * Build the StringBuilder that will be used as a base for all URL-related operations from now on: variable
          * templates, parameters, URL fragments...
          */
-        StringBuilder linkBase = new StringBuilder(base);
-
+        /*
+         * Build the link base. For server-relative links the leading '~' is simply not copied (previously it was
+         * deleted at the end, which shifted the whole buffer; no step in between depends on it).
+         */
+        final int baseStart = (linkType == LinkType.SERVER_RELATIVE ? 1 : 0);
+        final int baseEnd = (hashPosition > 0 ? hashPosition : base.length());
+        final StringBuilder linkBase = new StringBuilder(base.length() + 32);
+        linkBase.append(base, baseStart, baseEnd);
+        final String urlFragment = (hashPosition > 0 ? base.substring(hashPosition) : "");
 
         /*
-         * Compute URL fragments (selectors after '#') so that they can be output at the end of
-         * the URL, after parameters.
+         * Replace those variable templates that might appear
          */
-        String urlFragment = "";
-        // If hash position == 0 we will not consider it as marking an
-        // URL fragment.
-        if (hashPosition > 0) {
-            // URL fragment String will include the # sign
-            urlFragment = linkBase.substring(hashPosition);
-            linkBase.delete(hashPosition, linkBase.length());
-        }
-
-
-        /*
-         * Replace those variable templates that might appear referenced in the path itself, as for example, Spring
-         * "Path Variables" (e.g. '/something/{variable}/othersomething')
-         */
+        List<String> pathVariableNames = null;
         if (mightHaveVariableTemplates) {
-            linkBase = replaceTemplateParamsInBase(linkBase, linkParameters);
+            pathVariableNames = replaceTemplateParamsInBase(linkBase, linkParameters);
             filterOutJavaScriptLinks(linkBase);
         }
-
 
         /*
          * Process parameters (those that have not already been processed as a result of replacing template
          * parameters in base).
          */
-        if (linkParameters != null && linkParameters.size() > 0) {
+        final int pathVariableCount = (pathVariableNames == null ? 0 : pathVariableNames.size());
+        if (linkParameters != null && linkParameters.size() > pathVariableCount) {
 
             final boolean linkBaseHasQuestionMark = findCharInSequence(linkBase,'?') >= 0;
 
-            // If there is no '?' in linkBase, we have to replace with first '&' with '?'
             if (linkBaseHasQuestionMark) {
                 linkBase.append('&');
             } else {
                 linkBase.append('?');
             }
 
-            // Build the parameters query. The result will always start with '&'
-            processAllRemainingParametersAsQueryParams(linkBase, linkParameters);
+            processAllRemainingParametersAsQueryParams(linkBase, linkParameters, pathVariableNames);
 
         }
 
-
         /*
-         * Once parameters have been added (if there are parameters), we can add the URL fragment
+         * Add the fragment again
          */
         if (urlFragment.length() > 0) {
             linkBase.append(urlFragment);
         }
 
-
         /*
-         * If link base is server relative, we will delete now the leading '~' character so that it starts with '/'
-         */
-        if (linkType == LinkType.SERVER_RELATIVE) {
-            linkBase.delete(0,1);
-        }
-
-
-        /*
-         * It's finally a good moment to insert the context path if it is not empty
+         * Context is not empty and URL is context relative: insert the context path
          */
         if (linkType == LinkType.CONTEXT_RELATIVE && !contextPathEmpty) {
-            // Add the application's context path at the beginning
             linkBase.insert(0, contextPath);
         }
 
-
-        /*
-         * Return the link, first performing the last processing on it. This will normally perform a standard
-         * HttpServletResponse.encodeUrl(...) operation on it, but will give any subclasses the opportunity to
-         * customize this behaviour (in case, for instance, they don't want to rely on the Java Servlet API).
-         */
         return processLink(context, linkBase.toString());
 
     }
@@ -325,65 +298,49 @@ public class StandardLinkBuilder extends AbstractLinkBuilder {
 
 
 
-    private static StringBuilder replaceTemplateParamsInBase(final StringBuilder linkBase, final Map<String, Object> parameters) {
+    /*
+     * Replaces every {name} / {/name} variable template in linkBase with the (escaped) value of the parameter of the
+     * same name, and returns the names of the parameters used this way (null if none), which must not also be added
+     * as query parameters. Parameters are only read.
+     *
+     * Values are escaped as a URI path ({name}) or path segment ({/name}) when the template appears before the '?'
+     * of the link base, and as a query parameter after it.
+     */
+    private static List<String> replaceTemplateParamsInBase(final StringBuilder linkBase, final Map<String, Object> parameters) {
 
-        /*
-         * If parameters is null, there's nothing to do
-         */
         if (parameters == null) {
-            return linkBase;
+            return null;
         }
-
-        /*
-         * Search {templateVar} in linkBase, and replace with value.
-         * Parameters can be multivalued, in which case they will be comma-separated.
-         * Parameter values will be URL-path-encoded. If there is a '?' char, only parameter values before this
-         * char will be URL-path-encoded, whereas parameters after it will be URL-query-encoded.
-         */
 
         final int questionMarkPosition = findCharInSequence(linkBase, '?');
 
-        final Set<String> parameterNames = parameters.keySet();
-        Set<String> alreadyProcessedParameters = null;
+        List<String> pathVariableNames = null;
+        for (final Map.Entry<String, Object> parameter : parameters.entrySet()) {
 
-        for (final String parameterName : parameterNames) {
+            final String parameterName = parameter.getKey();
 
             // We default to escaping as a path, not a path segment
             boolean escapeAsPathSegment = false;
-
-            // We use the text repository in order to avoid the unnecessary creation of too many instances of the same string
-            String template = URL_TEMPLATE_DELIMITER_PREFIX + parameterName + URL_TEMPLATE_DELIMITER_SUFFIX;
-
-            int templateIndex = linkBase.indexOf(template); // not great, because StringBuilder.indexOf ends up calling template.toCharArray(), but...
-
+            int templateIndex = indexOfTemplate(linkBase, parameterName, false, 0);
             if (templateIndex < 0) {
-                template = URL_TEMPLATE_DELIMITER_SEGMENT_PREFIX + parameterName + URL_TEMPLATE_DELIMITER_SUFFIX;
-                templateIndex = linkBase.indexOf(template);
-
+                templateIndex = indexOfTemplate(linkBase, parameterName, true, 0);
                 if (templateIndex < 0) {
                     // This parameter is not one of those used in path variables
                     continue;
                 }
-
-                // We need to escape this parameter value as a path segment rather than a path
                 escapeAsPathSegment = true;
             }
 
-            // Add the parameter name to the set of processed ones so that it is later removed from the parameters object
-            if (alreadyProcessedParameters == null) {
-                alreadyProcessedParameters = new HashSet<String>(parameterNames.size());
+            if (pathVariableNames == null) {
+                pathVariableNames = new ArrayList<String>(parameters.size());
             }
-            alreadyProcessedParameters.add(parameterName);
+            pathVariableNames.add(parameterName);
 
             // Compute the replacement (unescaped!)
-            final Object parameterValue = parameters.get(parameterName);
-            final String templateReplacement = formatParameterValueAsUnescapedVariableTemplate(parameterValue);
+            final String templateReplacement = formatParameterValueAsUnescapedVariableTemplate(parameter.getValue());
             final int templateReplacementLen = templateReplacement.length();
+            final int templateLen = parameterName.length() + (escapeAsPathSegment ? 3 : 2);
 
-            // We will now use a the StringBuilder itself for replacing all appearances of the variable template in
-            // the link base. Note we do this instead of using String#replace() because String#replace internally uses
-            // pattern matching and is very slow :-(
-            final int templateLen = template.length();
             int start = templateIndex;
             while (start > -1) {
                 // Depending on whether the template appeared before or after the ?, we will apply different escaping
@@ -392,29 +349,49 @@ public class StandardLinkBuilder extends AbstractLinkBuilder {
                                 (escapeAsPathSegment ? UriEscape.escapeUriPathSegment(templateReplacement) : UriEscape.escapeUriPath(templateReplacement))
                                 : UriEscape.escapeUriQueryParam(templateReplacement));
                 linkBase.replace(start, start + templateLen, escapedReplacement);
-                start = linkBase.indexOf(template, start + templateReplacementLen);
+                start = indexOfTemplate(linkBase, parameterName, escapeAsPathSegment, start + templateReplacementLen);
             }
 
         }
 
-        if (alreadyProcessedParameters != null) {
-            for (final String alreadyProcessedParameter : alreadyProcessedParameters) {
-                parameters.remove(alreadyProcessedParameter);
-            }
-        }
-
-        return linkBase;
+        return pathVariableNames;
 
     }
 
 
-
-
-
     /*
-     * This method will return a String containing all the values for a specific parameter, separated with commas
-     * and suitable therefore to be used as variable template (path variables) replacements
+     * Position of the first "{name}" (or "{/name}" if segment) in the sequence at or after fromIndex, or -1.
+     * Equivalent to sequence.indexOf("{" + name + "}", fromIndex) without building the search string.
      */
+    static int indexOfTemplate(final CharSequence sequence, final String name, final boolean segment, final int fromIndex) {
+        final int prefixLen = (segment ? 2 : 1);
+        final int templateLen = name.length() + prefixLen + 1;
+        final int last = sequence.length() - templateLen;
+        for (int i = Math.max(fromIndex, 0); i <= last; i++) {
+            if (sequence.charAt(i) != URL_TEMPLATE_DELIMITER_PREFIX
+                    || (segment && sequence.charAt(i + 1) != '/')
+                    || sequence.charAt(i + templateLen - 1) != URL_TEMPLATE_DELIMITER_SUFFIX) {
+                continue;
+            }
+            if (regionMatches(sequence, i + prefixLen, name)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+
+    private static boolean regionMatches(final CharSequence sequence, final int offset, final String name) {
+        for (int j = 0, n = name.length(); j < n; j++) {
+            if (sequence.charAt(offset + j) != name.charAt(j)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+
     private static String formatParameterValueAsUnescapedVariableTemplate(final Object parameterValue) {
         // Get the value
         if (parameterValue == null) { // If null (= NO_VALUE), empty String
@@ -440,7 +417,8 @@ public class StandardLinkBuilder extends AbstractLinkBuilder {
 
 
 
-    private static void processAllRemainingParametersAsQueryParams(final StringBuilder strBuilder, final Map<String, Object> parameters) {
+    private static void processAllRemainingParametersAsQueryParams(
+            final StringBuilder strBuilder, final Map<String, Object> parameters, final List<String> pathVariableNames) {
 
         final int parameterSize = parameters.size();
 
@@ -448,12 +426,15 @@ public class StandardLinkBuilder extends AbstractLinkBuilder {
             return;
         }
 
-        final Set<String> parameterNames = parameters.keySet();
-
         int i = 0;
-        for (final String parameterName : parameterNames) {
+        for (final Map.Entry<String, Object> parameter : parameters.entrySet()) {
 
-            final Object value = parameters.get(parameterName);
+            final String parameterName = parameter.getKey();
+            if (pathVariableNames != null && pathVariableNames.contains(parameterName)) {
+                continue; // Already used as a path variable
+            }
+
+            final Object value = parameter.getValue();
 
             if (value == null) {
                 if (i > 0) {

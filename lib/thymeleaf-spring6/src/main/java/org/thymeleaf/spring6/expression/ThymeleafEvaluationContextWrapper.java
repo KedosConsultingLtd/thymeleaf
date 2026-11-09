@@ -19,6 +19,8 @@
  */
 package org.thymeleaf.spring6.expression;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +42,7 @@ import org.springframework.expression.TypedValue;
 import org.springframework.expression.spel.support.ReflectiveMethodResolver;
 import org.springframework.expression.spel.support.ReflectivePropertyAccessor;
 import org.springframework.expression.spel.support.SimpleEvaluationContext;
+import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.thymeleaf.expression.IExpressionObjects;
 import org.thymeleaf.spring6.expression.ThymeleafEvaluationContext.ThymeleafEvaluationContextACLMethodResolver;
 import org.thymeleaf.spring6.expression.ThymeleafEvaluationContext.ThymeleafEvaluationContextACLPropertyAccessor;
@@ -63,10 +66,24 @@ import org.thymeleaf.util.Validate;
  * @since 3.0.3
  *
  */
-public final class ThymeleafEvaluationContextWrapper implements IThymeleafEvaluationContext {
+public final class ThymeleafEvaluationContextWrapper implements IThymeleafEvaluationContext, SpelAccessorCachingContext {
 
 
     private static final MapAccessor MAP_ACCESSOR_INSTANCE = new MapAccessor();
+
+    /*
+     * Kedos: accessors and resolvers equivalent to the ones built for a default StandardEvaluationContext delegate,
+     * created once and shared by every standalone execution (see forStandaloneExecution()). Sharing keeps the
+     * reflective lookup caches warm across template executions, and lets SpEL's per-node accessor cache stay valid.
+     * All of them are thread-safe; the lists are unmodifiable.
+     */
+    private static final List<PropertyAccessor> STANDALONE_PROPERTY_ACCESSORS =
+            Collections.unmodifiableList(Arrays.<PropertyAccessor>asList(
+                    SPELContextPropertyAccessor.INSTANCE, MAP_ACCESSOR_INSTANCE,
+                    new ThymeleafEvaluationContextACLPropertyAccessor(new ReflectivePropertyAccessor())));
+    private static final List<MethodResolver> STANDALONE_METHOD_RESOLVERS =
+            Collections.<MethodResolver>singletonList(
+                    new ThymeleafEvaluationContextACLMethodResolver(new ReflectiveMethodResolver()));
 
 
     private final EvaluationContext delegate;
@@ -77,9 +94,40 @@ public final class ThymeleafEvaluationContextWrapper implements IThymeleafEvalua
 
     private IExpressionObjects expressionObjects = null;
     private boolean variableAccessRestricted = false;
+    private boolean accessorCachingEnabled = false;
     private Map<String,Object> additionalVariables = null;
 
 
+
+
+    /**
+     * <p>
+     *   Creates the evaluation context used when a template is executed without a
+     *   {@link ThymeleafEvaluationContext} (e.g. standalone, outside {@code ThymeleafView}). Equivalent to
+     *   {@code new ThymeleafEvaluationContextWrapper(new StandardEvaluationContext())}, but sharing its property
+     *   accessors and method resolvers across executions.
+     * </p>
+     *
+     * @return a new evaluation context for one template execution.
+     */
+    public static ThymeleafEvaluationContextWrapper forStandaloneExecution() {
+        final StandardEvaluationContext delegate = new StandardEvaluationContext();
+        return new ThymeleafEvaluationContextWrapper(
+                delegate, STANDALONE_PROPERTY_ACCESSORS,
+                new ThymeleafEvaluationContextACLTypeLocator(delegate.getTypeLocator()), STANDALONE_METHOD_RESOLVERS);
+    }
+
+
+    private ThymeleafEvaluationContextWrapper(
+            final EvaluationContext delegate, final List<PropertyAccessor> propertyAccessors,
+            final TypeLocator typeLocator, final List<MethodResolver> methodResolvers) {
+        super();
+        this.delegate = delegate;
+        this.propertyAccessors = propertyAccessors;
+        this.typeLocator = typeLocator;
+        this.methodResolvers = methodResolvers;
+        this.restrictedModeContext = SimpleEvaluationContext.forPropertyAccessors().build();
+    }
 
 
     public ThymeleafEvaluationContextWrapper(final EvaluationContext delegate) {
@@ -127,6 +175,15 @@ public final class ThymeleafEvaluationContextWrapper implements IThymeleafEvalua
         // expression-level checks but will also be blocked here, at the evaluation-context level.
         this.restrictedModeContext = SimpleEvaluationContext.forPropertyAccessors().build();
 
+    }
+
+
+    public boolean isAccessorCachingEnabled() {
+        return this.accessorCachingEnabled;
+    }
+
+    public void setAccessorCachingEnabled(final boolean enabled) {
+        this.accessorCachingEnabled = enabled;
     }
 
 

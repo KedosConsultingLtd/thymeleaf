@@ -28,7 +28,6 @@ import org.springframework.expression.spel.SpelNode;
 import org.springframework.expression.spel.ast.VariableReference;
 import org.springframework.expression.spel.standard.SpelExpression;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
-import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.thymeleaf.IEngineConfiguration;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.cache.ExpressionCacheKey;
@@ -222,7 +221,7 @@ public class SPELVariableExpressionEvaluator
                 // thread-safe). That's why we need to create a new EvaluationContext for each request / template
                 // execution, even if it is quite expensive to create because of requiring the initialization of
                 // several ConcurrentHashMaps.
-                evaluationContext = new ThymeleafEvaluationContextWrapper(new StandardEvaluationContext());
+                evaluationContext = ThymeleafEvaluationContextWrapper.forStandaloneExecution();
 
                 if (context instanceof IEngineContext) {
                     ((IEngineContext)context).setVariable(
@@ -258,6 +257,10 @@ public class SPELVariableExpressionEvaluator
              */
             thymeleafEvaluationContext.setExpressionObjects(expressionObjects);
             thymeleafEvaluationContext.setVariableAccessRestricted(expContext.getRestrictVariableAccess());
+            if (thymeleafEvaluationContext instanceof SpelAccessorCachingContext) {
+                // Compiled expressions need SpEL's own compilable accessors: only let interpreted ones cache ours
+                ((SpelAccessorCachingContext) thymeleafEvaluationContext).setAccessorCachingEnabled(!exp.compiled);
+            }
 
 
             /*
@@ -392,7 +395,9 @@ public class SPELVariableExpressionEvaluator
 
             final SpelExpression spelExpressionObject = (SpelExpression) spelExpressionParser.parseExpression(spelExpression);
 
-            exp = new ComputedSpelExpression(spelExpressionObject, mightNeedExpressionObjects, restricted);
+            exp = new ComputedSpelExpression(
+                    spelExpressionObject, mightNeedExpressionObjects, restricted,
+                    spelExpressionParser == PARSER_WITH_COMPILED_SPEL);
 
             if (cache != null && null != exp) {
                 cache.put(new ExpressionCacheKey(cacheType, spelExpression), exp);
@@ -458,13 +463,16 @@ public class SPELVariableExpressionEvaluator
         final SpelExpression expression;
         final boolean mightNeedExpressionObjects;
         final boolean restricted;
+        final boolean compiled;
 
         ComputedSpelExpression(
-                final SpelExpression expression, final boolean mightNeedExpressionObjects, final boolean restricted) {
+                final SpelExpression expression, final boolean mightNeedExpressionObjects, final boolean restricted,
+                final boolean compiled) {
             super();
             this.expression = expression;
             this.mightNeedExpressionObjects = mightNeedExpressionObjects;
             this.restricted = restricted;
+            this.compiled = compiled;
         }
 
 

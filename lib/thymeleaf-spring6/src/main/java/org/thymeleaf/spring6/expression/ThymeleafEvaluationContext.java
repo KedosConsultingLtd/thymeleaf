@@ -86,7 +86,7 @@ import org.thymeleaf.util.Validate;
  */
 public final class ThymeleafEvaluationContext
             extends StandardEvaluationContext
-            implements IThymeleafEvaluationContext {
+            implements IThymeleafEvaluationContext, SpelAccessorCachingContext {
 
     public static final String THYMELEAF_EVALUATION_CONTEXT_CONTEXT_VARIABLE_NAME = "thymeleaf::EvaluationContext";
 
@@ -117,6 +117,7 @@ public final class ThymeleafEvaluationContext
 
     private IExpressionObjects expressionObjects = null;
     private boolean variableAccessRestricted = false;
+    private boolean accessorCachingEnabled = false;
 
 
 
@@ -229,6 +230,14 @@ public final class ThymeleafEvaluationContext
 
     public boolean isVariableAccessRestricted() {
         return this.variableAccessRestricted;
+    }
+
+    public boolean isAccessorCachingEnabled() {
+        return this.accessorCachingEnabled;
+    }
+
+    public void setAccessorCachingEnabled(final boolean enabled) {
+        this.accessorCachingEnabled = enabled;
     }
 
     public void setVariableAccessRestricted(final boolean restricted) {
@@ -403,6 +412,77 @@ public final class ThymeleafEvaluationContext
 
             return canRead;
 
+        }
+
+
+        /*
+         * Kedos: SpEL caches one accessor per property node, but only reuses it while that exact instance is still in
+         * the evaluation context's accessor list. Reflective accessors normally hand SpEL a separate "optimal"
+         * accessor, which is never in that list, so every property read missed the cache and repeated the whole
+         * accessor search plus canRead(). When caching is enabled for the evaluation, return this accessor itself
+         * instead: SpEL can then reuse it, and every read still goes through read() below, which re-applies the ACL.
+         */
+        @Override
+        public PropertyAccessor createOptimalAccessor(final EvaluationContext context, final Object target, final String name) {
+            if (context instanceof SpelAccessorCachingContext && ((SpelAccessorCachingContext) context).isAccessorCachingEnabled()) {
+                return this;
+            }
+            return super.createOptimalAccessor(context, target, name);
+        }
+
+
+        /*
+         * Kedos: when SpEL reuses this accessor from its cache it calls read() directly, without canRead(). So read()
+         * must (1) step aside if SpEL's normal search would have picked a different accessor for this target and
+         * property, and (2) apply the same checks as canRead(), including the ACL. Throwing AccessException makes
+         * SpEL drop its cached accessor and run the normal search.
+         */
+        @Override
+        public TypedValue read(final EvaluationContext context, final Object target, final String name) throws AccessException {
+            if (anotherAccessorWouldRead(context, target, name) || !canRead(context, target, name)) {
+                throw new AccessException("Property '" + name + "' cannot be read by this accessor for this target");
+            }
+            return (this.propertyAccessor != null ?
+                    this.propertyAccessor.read(context, target, name) : super.read(context, target, name));
+        }
+
+
+        /*
+         * Mirrors SpEL's accessor search (AccessorUtils.getAccessorsToTry, then the first accessor whose canRead()
+         * is true): accessors targeting the target's class are tried first, then generic ones in list order. Returns
+         * true if an accessor that would be tried before this one can read the property, or if this accessor is not
+         * in the context at all.
+         */
+        private boolean anotherAccessorWouldRead(
+                final EvaluationContext context, final Object target, final String name) throws AccessException {
+            final Class<?> targetType = (target == null ? null : target.getClass());
+            boolean seenThis = false;
+            for (final PropertyAccessor accessor : context.getPropertyAccessors()) {
+                if (accessor == this) {
+                    seenThis = true;
+                    continue;
+                }
+                if (triedBefore(accessor, targetType, seenThis) && accessor.canRead(context, target, name)) {
+                    return true;
+                }
+            }
+            return !seenThis;
+        }
+
+
+        private static boolean triedBefore(final PropertyAccessor accessor, final Class<?> targetType, final boolean seenThis) {
+            final Class<?>[] targets = accessor.getSpecificTargetClasses();
+            if (targets == null || targets.length == 0) {
+                return !seenThis; // Generic accessors are tried in list order
+            }
+            if (targetType != null) {
+                for (final Class<?> targetClass : targets) {
+                    if (targetClass.isAssignableFrom(targetType)) {
+                        return true; // Accessors specific to the target's type are tried before generic ones
+                    }
+                }
+            }
+            return false; // Not applicable to this target type
         }
 
         private boolean isMemberForbidden(final Object target, final String memberName) {
