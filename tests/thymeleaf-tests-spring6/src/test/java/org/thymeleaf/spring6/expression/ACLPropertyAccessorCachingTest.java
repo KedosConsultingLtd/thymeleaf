@@ -101,6 +101,111 @@ public class ACLPropertyAccessorCachingTest {
     }
 
 
+    /** How the SpEL evaluation context is provided for a render. */
+    enum ContextKind { STANDALONE, THYMELEAF, THYMELEAF_WITH_OVERRIDES, CUSTOM_DELEGATE }
+
+    private static final String INDEXER = "<p th:text=\"${p['name']}\">x</p><p th:text=\"${p[field]}\">x</p>";
+
+
+    @ParameterizedTest(name = "compiler={0}")
+    @org.junit.jupiter.params.provider.ValueSource(booleans = { false, true })
+    public void bracketAccessWorksAcrossAllContextKindsInAnyOrder(final boolean compiler) {
+        final SpringTemplateEngine engine = engine(compiler);
+        final ContextKind[] sequence = {
+                ContextKind.STANDALONE, ContextKind.THYMELEAF, ContextKind.THYMELEAF_WITH_OVERRIDES,
+                ContextKind.THYMELEAF_WITH_OVERRIDES, ContextKind.CUSTOM_DELEGATE, ContextKind.CUSTOM_DELEGATE,
+                ContextKind.STANDALONE, ContextKind.THYMELEAF_WITH_OVERRIDES, ContextKind.THYMELEAF };
+        for (final ContextKind kind : sequence) {
+            Assertions.assertEquals("<p>ok</p><p>ok</p>", renderBracket(engine, new Named("ok"), kind), kind.name());
+        }
+    }
+
+
+    @ParameterizedTest(name = "compiler={0}")
+    @org.junit.jupiter.params.provider.ValueSource(booleans = { false, true })
+    public void bracketAccessToForbiddenTypeIsStillRejected(final boolean compiler) {
+        final SpringTemplateEngine engine = engine(compiler);
+        for (final ContextKind kind : ContextKind.values()) {
+            Assertions.assertEquals("<p>ok</p><p>ok</p>", renderBracket(engine, new Named("ok"), kind));
+            final TemplateProcessingException e = Assertions.assertThrows(
+                    TemplateProcessingException.class, () -> renderBracket(engine, new File("secret"), kind), kind.name());
+            assertForbiddenCause(e);
+        }
+    }
+
+
+    @org.junit.jupiter.api.Test
+    public void concurrentRendersWithMixedContextsNeverFail() throws Exception {
+        final SpringTemplateEngine engine = engine(false);
+        final java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(8);
+        final java.util.concurrent.atomic.AtomicInteger failures = new java.util.concurrent.atomic.AtomicInteger();
+        final List<java.util.concurrent.Future<?>> futures = new java.util.ArrayList<>();
+        for (int t = 0; t < 8; t++) {
+            final int thread = t;
+            futures.add(pool.submit(() -> {
+                for (int i = 0; i < 300; i++) {
+                    final ContextKind kind = ContextKind.values()[(thread + i) % ContextKind.values().length];
+                    try {
+                        if (!"<p>ok</p><p>ok</p>".equals(renderBracket(engine, new Named("ok"), kind))
+                                || !"<p>ok</p>".equals(render(engine, NAME_LOOP, Arrays.asList(new Named("ok")), kind))) {
+                            failures.incrementAndGet();
+                        }
+                    } catch (final RuntimeException e) {
+                        failures.incrementAndGet();
+                    }
+                }
+            }));
+        }
+        for (final java.util.concurrent.Future<?> future : futures) {
+            future.get();
+        }
+        pool.shutdown();
+        Assertions.assertEquals(0, failures.get());
+    }
+
+
+    private static String renderBracket(final SpringTemplateEngine engine, final Object target, final ContextKind kind) {
+        final Context context = new Context();
+        context.setVariable("p", target);
+        context.setVariable("field", "name");
+        applyContextKind(context, kind);
+        return engine.process(INDEXER, context);
+    }
+
+    private static String render(final SpringTemplateEngine engine, final String template, final List<?> items, final ContextKind kind) {
+        final Context context = new Context();
+        context.setVariable("items", items);
+        applyContextKind(context, kind);
+        return engine.process(template, context);
+    }
+
+    private static void applyContextKind(final Context context, final ContextKind kind) {
+        final String name = ThymeleafEvaluationContext.THYMELEAF_EVALUATION_CONTEXT_CONTEXT_VARIABLE_NAME;
+        switch (kind) {
+            case THYMELEAF:
+                context.setVariable(name, new ThymeleafEvaluationContext(new StaticApplicationContext(), null));
+                break;
+            case THYMELEAF_WITH_OVERRIDES: // New ACL accessor instances for every request
+                context.setVariable(name, new ThymeleafEvaluationContext(
+                        new StaticApplicationContext(), null, java.util.Collections.<Class<?>>singleton(java.util.UUID.class)));
+                break;
+            case CUSTOM_DELEGATE: // Wrapped by the evaluator in a new ThymeleafEvaluationContextWrapper every request
+                context.setVariable(name, new org.springframework.expression.spel.support.StandardEvaluationContext());
+                break;
+            default:
+                break;
+        }
+    }
+
+    private static void assertForbiddenCause(final Throwable e) {
+        Throwable cause = e;
+        while (cause != null && (cause.getMessage() == null || !cause.getMessage().contains("forbidden"))) {
+            cause = cause.getCause();
+        }
+        Assertions.assertNotNull(cause, "expected an ACL 'forbidden' error, got: " + e);
+    }
+
+
     private static SpringTemplateEngine engine(final boolean compiler) {
         final SpringTemplateEngine engine = new SpringTemplateEngine();
         engine.setTemplateResolver(new StringTemplateResolver());

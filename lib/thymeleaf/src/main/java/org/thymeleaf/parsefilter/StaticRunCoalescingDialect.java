@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.Set;
 
 import org.thymeleaf.dialect.AbstractDialect;
+import org.thymeleaf.dialect.IDialect;
 import org.thymeleaf.dialect.IParseFilterDialect;
 
 /**
@@ -39,13 +40,22 @@ public final class StaticRunCoalescingDialect extends AbstractDialect implements
 
 
     public StaticRunCoalescingDialect() {
-        this(StaticRunCoalescingParseFilter.DEFAULT_PRECEDENCE);
+        this(Collections.<Class<? extends IDialect>>emptySet());
     }
 
-    public StaticRunCoalescingDialect(final int precedence) {
+    /**
+     * @param trustedDialectTypes dialects (besides the Standard dialect) whose element model processors are known
+     *        not to inspect the element structure of static markup. See
+     *        {@link StaticRunCoalescingParseFilter#StaticRunCoalescingParseFilter(int, Set)}.
+     */
+    public StaticRunCoalescingDialect(final Set<Class<? extends IDialect>> trustedDialectTypes) {
+        this(StaticRunCoalescingParseFilter.DEFAULT_PRECEDENCE, trustedDialectTypes);
+    }
+
+    public StaticRunCoalescingDialect(final int precedence, final Set<Class<? extends IDialect>> trustedDialectTypes) {
         super(NAME);
         this.parseFilters =
-                Collections.<IParseFilter>singleton(new StaticRunCoalescingParseFilter(precedence));
+                Collections.<IParseFilter>singleton(new StaticRunCoalescingParseFilter(precedence, trustedDialectTypes));
     }
 
 

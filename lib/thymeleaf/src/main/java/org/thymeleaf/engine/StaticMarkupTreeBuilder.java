@@ -35,14 +35,20 @@ import org.thymeleaf.model.ITemplateEvent;
  */
 final class StaticMarkupTreeBuilder {
 
+    /*
+     * The tree is processed recursively. Templates nested deeper than this are passed through unchanged instead
+     * of risking a StackOverflowError (real templates are nowhere near this depth).
+     */
+    static final int MAX_DEPTH = 256;
+
     private StaticMarkupTreeBuilder() {
         super();
     }
 
 
     /**
-     * @return the root nodes, or {@code null} if the events are not balanced (in which case coalescing must not be
-     *         attempted).
+     * @return the root nodes, or {@code null} if the events are not balanced or nest deeper than {@link #MAX_DEPTH}
+     *         (in which case coalescing must not be attempted).
      */
     static List<StaticMarkupNode> build(final List<ITemplateEvent> events, final StaticMarkupPolicy policy) {
 
@@ -54,6 +60,9 @@ final class StaticMarkupTreeBuilder {
                 final StaticMarkupNode node = StaticMarkupNode.element((IOpenElementTag) event);
                 addTo(roots, open, node);
                 open.push(node);
+                if (open.size() > MAX_DEPTH) {
+                    return null;
+                }
             } else if (event instanceof ICloseElementTag && !((ICloseElementTag) event).isUnmatched()) {
                 if (open.isEmpty()) {
                     return null;

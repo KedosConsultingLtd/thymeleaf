@@ -20,6 +20,7 @@
 package org.thymeleaf.parsefilter;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -129,10 +130,74 @@ public class StaticRunCoalescingParseFilterTest {
     }
 
     @Test
-    public void modelProcessorsSeeOriginalElements() {
+    public void modelProcessorsSeeOriginalElementsWhenTheirDialectIsTrusted() {
+        final Map<String, String> templates = page(
+                "<div test:count=\"\">\n  <ul><li>a</li><li>b</li></ul>\n  <p>static <b>text</b></p>\n</div><footer><p>x</p><p>y</p></footer>");
+        final String expected = render(templates, true, new CountChildElementsDialect());
+        final IDialect trustedCoalescing = new StaticRunCoalescingDialect(
+                Collections.<Class<? extends IDialect>>singleton(CountChildElementsDialect.class));
+        Assertions.assertEquals(expected, render(templates, true, new CountChildElementsDialect(), trustedCoalescing));
+        Assertions.assertEquals(expected, render(templates, false, new CountChildElementsDialect(), trustedCoalescing));
+        Assertions.assertTrue(cachedEventCount(templates, new CountChildElementsDialect(), trustedCoalescing)
+                < cachedEventCount(templates, new CountChildElementsDialect()));
+    }
+
+    @Test
+    public void untrustedModelProcessorDialectDisablesCoalescing() {
+        // e.g. a layout/decorator dialect: its model processors may walk markup of this or other templates
+        final Map<String, String> templates = page("<div><p>a</p><p>b</p></div><span test:count=\"\"><i>x</i></span>");
+        Assertions.assertEquals(
+                cachedEventCount(templates, new CountChildElementsDialect()),
+                cachedEventCount(templates, new CountChildElementsDialect(), new StaticRunCoalescingDialect()));
+        assertSameOutput(templates, new CountChildElementsDialect());
+    }
+
+    @Test
+    public void switchedModeInliningUnderAncestorIsNeverSkipped() {
+        // Ancestor th:inline switches inlining mode at render time: element blocks and prototype-only comments
+        // inside nested static elements must still be processed (authorisation-gated content must not leak)
         assertSameOutput(page(
-                "<div test:count=\"\">\n  <ul><li>a</li><li>b</li></ul>\n  <p>static <b>text</b></p>\n</div>"),
-                new CountChildElementsDialect());
+                "<body th:inline=\"javascript\"><div><span><script>/*[- var secret = 'PROTOTYPE'; -]*/ var a = 1;"
+                + " /*[+ var added = true; +]*/ [# th:if=\"${false}\"]var admin = true;[/] [# th:unless=\"${flag}\"]var guest = 1;[/]"
+                + "</script></span><p>static</p></div></body>"
+                + "<div th:inline=\"text\"><section><p>[# th:if=\"${false}\"]hidden[/] visible</p></section></div>"
+                + "<div th:inline=\"css\"><section><style>/*[- .proto {} -]*/ .a { color: red; }</style></section></div>"
+                + "<div><![CDATA[[${name}]]><p>after</p></div>"));
+    }
+
+    @Test
+    public void runtimeStringParsesAreNotFiltered() {
+        // IModelFactory.parse of model data must return exactly what the parser produced (no coalescing, no
+        // whitespace collapsing), so sanitising dialects see every element
+        final Map<String, String> templates = page("<div test:parse=\"html\">x</div>");
+        final Context context = context();
+        context.setVariable("html", "<p>Hi <b>x</b>   \n   <script>s()</script><img src=x onerror=e()></p>");
+        final String expected = engine(templates, true, new ModelParseDialect()).process(MAIN, context);
+        Assertions.assertTrue(expected.contains("OpenElementTag:<script>"), expected);
+        Assertions.assertEquals(expected, engine(templates, true, new ModelParseDialect(),
+                new WhitespaceCollapsingDialect(), new StaticRunCoalescingDialect(
+                        Collections.<Class<? extends IDialect>>singleton(ModelParseDialect.class))).process(MAIN, context));
+        // th:utext with a post-processor configured re-parses the value: whitespace in model data is kept
+        final Map<String, String> utext = page("<pre th:utext=\"${html}\">x</pre>");
+        Assertions.assertEquals(
+                engine(utext, true, new PassThroughPostProcessorDialect()).process(MAIN, context),
+                engine(utext, true, new PassThroughPostProcessorDialect(), new WhitespaceCollapsingDialect()).process(MAIN, context));
+    }
+
+    @Test
+    public void deeplyNestedMarkupIsHandledWithoutStackOverflow() {
+        for (final int depth : new int[] { 255, 257, 20000 }) {
+            final StringBuilder template = new StringBuilder("<main>");
+            for (int i = 0; i < depth; i++) {
+                template.append("<div>");
+            }
+            template.append("<span th:text=\"${name}\">x</span>");
+            for (int i = 0; i < depth; i++) {
+                template.append("</div>");
+            }
+            template.append("<p>static</p></main>");
+            assertSameOutput(page(template.toString()));
+        }
     }
 
     @Test

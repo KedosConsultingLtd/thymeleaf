@@ -19,7 +19,12 @@
  */
 package org.thymeleaf.parsefilter;
 
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+
 import org.thymeleaf.IEngineConfiguration;
+import org.thymeleaf.dialect.IDialect;
 import org.thymeleaf.engine.ITemplateHandler;
 import org.thymeleaf.engine.StaticRunCoalescingTemplateHandler;
 import org.thymeleaf.templatemode.TemplateMode;
@@ -32,7 +37,8 @@ import org.thymeleaf.templatemode.TemplateMode;
  * </p>
  * <p>
  *   Disables itself (with a warning) when pre-processors or post-processors are configured, because those
- *   observe the event stream.
+ *   observe the event stream, or when a dialect with element model processors is configured that has not been
+ *   explicitly trusted (see {@link #StaticRunCoalescingParseFilter(int, Set)}).
  * </p>
  */
 public final class StaticRunCoalescingParseFilter implements IParseFilter {
@@ -41,15 +47,24 @@ public final class StaticRunCoalescingParseFilter implements IParseFilter {
     public static final int DEFAULT_PRECEDENCE = 2000;
 
     private final int precedence;
+    private final Set<Class<? extends IDialect>> trustedDialectTypes;
 
 
     public StaticRunCoalescingParseFilter() {
-        this(DEFAULT_PRECEDENCE);
+        this(DEFAULT_PRECEDENCE, Collections.<Class<? extends IDialect>>emptySet());
     }
 
-    public StaticRunCoalescingParseFilter(final int precedence) {
+    /**
+     * @param precedence the filter precedence.
+     * @param trustedDialectTypes dialects (besides the Standard dialect) whose element model processors may be
+     *        used together with coalescing. Only list dialects whose model processors never inspect the element
+     *        structure of static markup (in this template or in templates/fragments they load). If any other
+     *        dialect with element model processors is configured, coalescing disables itself.
+     */
+    public StaticRunCoalescingParseFilter(final int precedence, final Set<Class<? extends IDialect>> trustedDialectTypes) {
         super();
         this.precedence = precedence;
+        this.trustedDialectTypes = Collections.unmodifiableSet(new HashSet<Class<? extends IDialect>>(trustedDialectTypes));
     }
 
 
@@ -62,7 +77,7 @@ public final class StaticRunCoalescingParseFilter implements IParseFilter {
     }
 
     public ITemplateHandler createHandler(final IEngineConfiguration configuration, final ITemplateHandler next) {
-        return StaticRunCoalescingTemplateHandler.create(configuration, TemplateMode.HTML, next);
+        return StaticRunCoalescingTemplateHandler.create(configuration, TemplateMode.HTML, next, this.trustedDialectTypes);
     }
 
 }

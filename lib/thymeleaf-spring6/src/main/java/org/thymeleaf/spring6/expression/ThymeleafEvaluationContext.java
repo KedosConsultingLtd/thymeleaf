@@ -432,58 +432,70 @@ public final class ThymeleafEvaluationContext
 
 
         /*
-         * Kedos: when SpEL reuses this accessor from its cache it calls read() directly, without canRead(). So read()
-         * must (1) step aside if SpEL's normal search would have picked a different accessor for this target and
-         * property, and (2) apply the same checks as canRead(), including the ACL. Throwing AccessException makes
-         * SpEL drop its cached accessor and run the normal search.
+         * Kedos: SpEL may call read() directly from a cache, without canRead(): PropertyOrFieldReference (which
+         * first checks this instance is still in the context's accessor list) and Indexer (which caches by
+         * property name and target type only, and never searches again). So read() must return exactly what SpEL's
+         * normal search would return in the CURRENT context, and must never fail just because the cached accessor
+         * came from another context. It therefore performs that search itself (AccessorUtils order: accessors
+         * targeting the exact type, then a supertype, then generic accessors in list order; first canRead() wins).
+         * When this accessor wins, canRead() re-applies the ACL (throwing for forbidden members) before reading.
          */
         @Override
         public TypedValue read(final EvaluationContext context, final Object target, final String name) throws AccessException {
-            if (anotherAccessorWouldRead(context, target, name) || !canRead(context, target, name)) {
-                throw new AccessException("Property '" + name + "' cannot be read by this accessor for this target");
+            final List<PropertyAccessor> accessors = context.getPropertyAccessors();
+            final Class<?> targetType = (target == null ? null : target.getClass());
+            if (targetType != null) {
+                for (final PropertyAccessor accessor : accessors) {
+                    if (targetsType(accessor, targetType, true) && accessor.canRead(context, target, name)) {
+                        return readWith(accessor, context, target, name);
+                    }
+                }
+                for (final PropertyAccessor accessor : accessors) {
+                    if (targetsType(accessor, targetType, false) && accessor.canRead(context, target, name)) {
+                        return readWith(accessor, context, target, name);
+                    }
+                }
             }
+            for (final PropertyAccessor accessor : accessors) {
+                if (isGeneric(accessor) && accessor.canRead(context, target, name)) {
+                    return readWith(accessor, context, target, name);
+                }
+            }
+            throw new AccessException("Property '" + name + "' cannot be read in this evaluation context");
+        }
+
+
+        private TypedValue readWith(
+                final PropertyAccessor accessor, final EvaluationContext context, final Object target, final String name)
+                throws AccessException {
+            if (accessor != this) {
+                return accessor.read(context, target, name); // Applies its own checks
+            }
+            // canRead() (which applies the ACL) has just returned true for this accessor
             return (this.propertyAccessor != null ?
                     this.propertyAccessor.read(context, target, name) : super.read(context, target, name));
         }
 
 
-        /*
-         * Mirrors SpEL's accessor search (AccessorUtils.getAccessorsToTry, then the first accessor whose canRead()
-         * is true): accessors targeting the target's class are tried first, then generic ones in list order. Returns
-         * true if an accessor that would be tried before this one can read the property, or if this accessor is not
-         * in the context at all.
-         */
-        private boolean anotherAccessorWouldRead(
-                final EvaluationContext context, final Object target, final String name) throws AccessException {
-            final Class<?> targetType = (target == null ? null : target.getClass());
-            boolean seenThis = false;
-            for (final PropertyAccessor accessor : context.getPropertyAccessors()) {
-                if (accessor == this) {
-                    seenThis = true;
-                    continue;
-                }
-                if (triedBefore(accessor, targetType, seenThis) && accessor.canRead(context, target, name)) {
+        private static boolean isGeneric(final PropertyAccessor accessor) {
+            final Class<?>[] targets = accessor.getSpecificTargetClasses();
+            return (targets == null || targets.length == 0);
+        }
+
+
+        private static boolean targetsType(final PropertyAccessor accessor, final Class<?> targetType, final boolean exact) {
+            final Class<?>[] targets = accessor.getSpecificTargetClasses();
+            if (targets == null) {
+                return false;
+            }
+            for (final Class<?> targetClass : targets) {
+                if (exact ? targetClass == targetType : (targetClass != targetType && targetClass.isAssignableFrom(targetType))) {
                     return true;
                 }
             }
-            return !seenThis;
+            return false;
         }
 
-
-        private static boolean triedBefore(final PropertyAccessor accessor, final Class<?> targetType, final boolean seenThis) {
-            final Class<?>[] targets = accessor.getSpecificTargetClasses();
-            if (targets == null || targets.length == 0) {
-                return !seenThis; // Generic accessors are tried in list order
-            }
-            if (targetType != null) {
-                for (final Class<?> targetClass : targets) {
-                    if (targetClass.isAssignableFrom(targetType)) {
-                        return true; // Accessors specific to the target's type are tried before generic ones
-                    }
-                }
-            }
-            return false; // Not applicable to this target type
-        }
 
         private boolean isMemberForbidden(final Object target, final String memberName) {
             if (target == null || !ExpressionUtils.isMemberForbidden(target, memberName)) {

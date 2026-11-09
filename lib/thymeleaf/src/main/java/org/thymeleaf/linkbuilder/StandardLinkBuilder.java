@@ -20,6 +20,8 @@
 package org.thymeleaf.linkbuilder;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -60,6 +62,8 @@ public class StandardLinkBuilder extends AbstractLinkBuilder {
 
     protected enum LinkType { ABSOLUTE, CONTEXT_RELATIVE, SERVER_RELATIVE, BASE_RELATIVE }
 
+    private final boolean copyParameters;
+
     private static final char URL_TEMPLATE_DELIMITER_PREFIX = '{';
     private static final char URL_TEMPLATE_DELIMITER_SUFFIX = '}';
     private static final String URL_TEMPLATE_DELIMITER_SEGMENT_PREFIX = "{/";
@@ -71,6 +75,7 @@ public class StandardLinkBuilder extends AbstractLinkBuilder {
 
     public StandardLinkBuilder() {
         super();
+        this.copyParameters = overridesComputeContextPath(getClass());
     }
 
     
@@ -86,9 +91,14 @@ public class StandardLinkBuilder extends AbstractLinkBuilder {
         }
 
         // We need to create a copy that is: 1. defensive, 2. mutable
-        // Kedos: parameters are only read, never modified, so no defensive copy is needed. Parameters used as path
-        // variables are recorded in 'pathVariableNames' and skipped when building the query string.
-        final Map<String,Object> linkParameters = (parameters == null || parameters.size() == 0? null : parameters);
+        // Kedos: parameters are only read, never modified, so no defensive copy is needed for the ordinary maps
+        // produced by link expressions. Parameters used as path variables are recorded in 'pathVariableNames' and
+        // skipped when building the query string. A copy is still taken (as upstream always did) for any other map
+        // type (e.g. identity or concurrent maps, whose iteration and size may differ from a LinkedHashMap copy) and
+        // when a subclass overrides computeContextPath(), which receives the caller's map and might modify it.
+        final Map<String,Object> linkParameters =
+                (parameters == null || parameters.size() == 0? null :
+                        (this.copyParameters || !isPlainMap(parameters) ? new LinkedHashMap<String, Object>(parameters) : parameters));
 
         filterOutJavaScriptLinks(base);
 
@@ -202,6 +212,25 @@ public class StandardLinkBuilder extends AbstractLinkBuilder {
     }
 
     
+
+
+    private static boolean isPlainMap(final Map<String, Object> map) {
+        final Class<?> type = map.getClass();
+        return type == LinkedHashMap.class || type == HashMap.class;
+    }
+
+
+    private static boolean overridesComputeContextPath(final Class<?> type) {
+        for (Class<?> c = type; c != null && c != StandardLinkBuilder.class; c = c.getSuperclass()) {
+            try {
+                c.getDeclaredMethod("computeContextPath", IExpressionContext.class, String.class, Map.class);
+                return true;
+            } catch (final NoSuchMethodException e) {
+                // Not declared at this level
+            }
+        }
+        return false;
+    }
 
 
     private static int findCharInSequence(final CharSequence seq, final char character) {
@@ -318,12 +347,13 @@ public class StandardLinkBuilder extends AbstractLinkBuilder {
         for (final Map.Entry<String, Object> parameter : parameters.entrySet()) {
 
             final String parameterName = parameter.getKey();
+            final String templateName = String.valueOf(parameterName); // null keys match "{null}", as upstream did
 
             // We default to escaping as a path, not a path segment
             boolean escapeAsPathSegment = false;
-            int templateIndex = indexOfTemplate(linkBase, parameterName, false, 0);
+            int templateIndex = indexOfTemplate(linkBase, templateName, false, 0);
             if (templateIndex < 0) {
-                templateIndex = indexOfTemplate(linkBase, parameterName, true, 0);
+                templateIndex = indexOfTemplate(linkBase, templateName, true, 0);
                 if (templateIndex < 0) {
                     // This parameter is not one of those used in path variables
                     continue;
@@ -339,7 +369,7 @@ public class StandardLinkBuilder extends AbstractLinkBuilder {
             // Compute the replacement (unescaped!)
             final String templateReplacement = formatParameterValueAsUnescapedVariableTemplate(parameter.getValue());
             final int templateReplacementLen = templateReplacement.length();
-            final int templateLen = parameterName.length() + (escapeAsPathSegment ? 3 : 2);
+            final int templateLen = templateName.length() + (escapeAsPathSegment ? 3 : 2);
 
             int start = templateIndex;
             while (start > -1) {
@@ -349,7 +379,7 @@ public class StandardLinkBuilder extends AbstractLinkBuilder {
                                 (escapeAsPathSegment ? UriEscape.escapeUriPathSegment(templateReplacement) : UriEscape.escapeUriPath(templateReplacement))
                                 : UriEscape.escapeUriQueryParam(templateReplacement));
                 linkBase.replace(start, start + templateLen, escapedReplacement);
-                start = indexOfTemplate(linkBase, parameterName, escapeAsPathSegment, start + templateReplacementLen);
+                start = indexOfTemplate(linkBase, templateName, escapeAsPathSegment, start + templateReplacementLen);
             }
 
         }

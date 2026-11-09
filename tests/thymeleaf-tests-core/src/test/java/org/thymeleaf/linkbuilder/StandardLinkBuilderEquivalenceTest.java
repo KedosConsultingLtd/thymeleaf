@@ -44,21 +44,27 @@ public class StandardLinkBuilderEquivalenceTest {
             "~/p/{slug}?x=1", "~/", "~/p#top", "/p?q={q}", "/p/{id}?q={q}#frag", "/p/{id}?q={id}", "#frag", "#{id}",
             "/a#{id}", "http://x.example/{id}/z", "HTTP://x.example/p", "//cdn.example/{f}", "mailto:{who}",
             "rel/{a}", "{a}", "{a}{b}", "/{a}{a}", "/x/{a}?{a}", "/a/{missing}", "/a/{id", "/a/id}", "/{}", "/{/}",
-            "/{{id}}", "/{ id }", "/café/{id}", "javascript:alert(1)", " JavaScript:x", "java\tscript:x",
+            "/{{id}}", "~/p/{null}", "/p/{/null}", "/{ id }", "/caf\u00e9/{id}", "javascript:alert(1)", " JavaScript:x", "java\tscript:x",
             "{a}", "~/{a}", "/a?b", "/a?", "/a/{id}?", "/a/{id}#", "/x/{a b}", "/x/{}");
 
     private static final List<Map<String, Object>> PARAMETERS = parameterSets();
 
     private static final List<String> CONTEXT_PATHS = Arrays.asList(null, "", "/", "/shop");
 
+    private static final String STOCK = "<stock builder>"; // No computeContextPath override (copy-free path)
+
 
     @Test
     public void sameOutputAsReferenceImplementation() {
         final IExpressionContext context = new ExpressionContext(new TemplateEngine().getConfiguration());
         int compared = 0;
-        for (final String contextPath : CONTEXT_PATHS) {
-            final StandardLinkBuilder optimised = new FixedContextPathLinkBuilder(contextPath);
-            final ReferenceStandardLinkBuilder reference = new FixedContextPathReferenceLinkBuilder(contextPath);
+        final List<String> variants = new ArrayList<>(CONTEXT_PATHS);
+        variants.add(STOCK);
+        for (final String contextPath : variants) {
+            final boolean stock = STOCK.equals(contextPath);
+            final StandardLinkBuilder optimised = stock ? new StandardLinkBuilder() : new FixedContextPathLinkBuilder(contextPath);
+            final ReferenceStandardLinkBuilder reference =
+                    stock ? new ReferenceStandardLinkBuilder() : new FixedContextPathReferenceLinkBuilder(contextPath);
             for (final String base : BASES) {
                 for (final Map<String, Object> parameters : PARAMETERS) {
                     final Map<String, Object> before = (parameters == null ? null : new LinkedHashMap<>(parameters));
@@ -71,7 +77,63 @@ public class StandardLinkBuilderEquivalenceTest {
                 }
             }
         }
-        Assertions.assertTrue(compared > 3000);
+        Assertions.assertTrue(compared > 4000, "compared=" + compared);
+    }
+
+
+    @Test
+    public void unusualMapTypesBehaveAsUpstream() {
+        final IExpressionContext context = new ExpressionContext(new TemplateEngine().getConfiguration());
+        final List<Map<String, Object>> maps = new ArrayList<>();
+        final Map<String, Object> identity = new java.util.IdentityHashMap<>();
+        identity.put(new String("role"), "user");
+        identity.put(new String("role"), "admin");
+        identity.put(new String("id"), "1");
+        identity.put(new String("id"), "2");
+        maps.add(identity);
+        final Map<String, Object> concurrent = new java.util.concurrent.ConcurrentHashMap<>();
+        concurrent.put("id", "1");
+        concurrent.put("q", "x");
+        maps.add(concurrent);
+        final Map<String, Object> treeMap = new java.util.TreeMap<>();
+        treeMap.put("b", "2");
+        treeMap.put("a", "1");
+        treeMap.put("id", "9");
+        maps.add(treeMap);
+        for (final Map<String, Object> map : maps) {
+            for (final String base : BASES) {
+                Assertions.assertEquals(
+                        outcome(() -> new ReferenceStandardLinkBuilder().buildLink(context, base, map)),
+                        outcome(() -> new StandardLinkBuilder().buildLink(context, base, map)),
+                        "base=" + base + " map=" + map.getClass().getSimpleName());
+            }
+        }
+    }
+
+
+    @Test
+    public void computeContextPathOverrideModifyingParametersBehavesAsUpstream() {
+        final IExpressionContext context = new ExpressionContext(new TemplateEngine().getConfiguration());
+        final StandardLinkBuilder optimised = new StandardLinkBuilder() {
+            @Override
+            protected String computeContextPath(final IExpressionContext c, final String base, final Map<String, Object> parameters) {
+                parameters.remove("tenant");
+                return "/ctx";
+            }
+        };
+        final ReferenceStandardLinkBuilder reference = new ReferenceStandardLinkBuilder() {
+            @Override
+            protected String computeContextPath(final IExpressionContext c, final String base, final Map<String, Object> parameters) {
+                parameters.remove("tenant");
+                return "/ctx";
+            }
+        };
+        for (final String base : Arrays.asList("/p/{id}", "/p", "/p?x=1#f")) {
+            final Map<String, Object> forReference = new LinkedHashMap<>(params("id", "1", "tenant", "t1"));
+            final Map<String, Object> forOptimised = new LinkedHashMap<>(params("id", "1", "tenant", "t1"));
+            Assertions.assertEquals(reference.buildLink(context, base, forReference), optimised.buildLink(context, base, forOptimised));
+            Assertions.assertEquals(forReference, forOptimised);
+        }
     }
 
 
@@ -125,7 +187,7 @@ public class StandardLinkBuilderEquivalenceTest {
         sets.add(params("a", Collections.emptyList()));
         sets.add(params("extra", "v", "id", "1"));
         sets.add(params("id", "1", "extra", Arrays.asList("x", "y")));
-        sets.add(params("a b", "c", "id", "é"));
+        sets.add(params("a b", "c", "id", "\u00e9"));
         sets.add(params("", "x"));
         sets.add(params("id", "{id}"));
         sets.add(params("a", "{b}", "b", "Z"));
@@ -134,6 +196,8 @@ public class StandardLinkBuilderEquivalenceTest {
         sets.add(params("a", " javascript:alert(1)", "b", "x"));
         sets.add(params("who", "me@example.com", "subject", "hi there"));
         sets.add(params("id", "1", "seg", "s", "q", "q", "missing", "m", "f", "f.js", "slug", "s", "who", "w", "h", "h"));
+        sets.add(params(null, "v", "x", "1"));
+        sets.add(params("id", "1", null, null));
         return sets;
     }
 
@@ -142,7 +206,7 @@ public class StandardLinkBuilderEquivalenceTest {
         for (int i = 0; i < keyValues.length; i += 2) {
             map.put((String) keyValues[i], keyValues[i + 1]);
         }
-        return Collections.unmodifiableMap(map); // Fails the test if the builder tries to modify it
+        return map; // Plain LinkedHashMap (copy-free path); the test asserts it is left unmodified
     }
 
 

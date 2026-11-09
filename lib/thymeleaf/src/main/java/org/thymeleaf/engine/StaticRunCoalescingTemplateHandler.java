@@ -25,7 +25,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.Set;
+
 import org.thymeleaf.IEngineConfiguration;
+import org.thymeleaf.dialect.IDialect;
 import org.thymeleaf.model.ICDATASection;
 import org.thymeleaf.model.ICloseElementTag;
 import org.thymeleaf.model.IComment;
@@ -62,12 +65,16 @@ public final class StaticRunCoalescingTemplateHandler extends AbstractTemplateHa
 
 
     /**
+     * @param trustedDialectTypes dialects (besides the Standard dialect) whose element model processors are known not
+     *        to depend on the element structure of static markup.
      * @return a coalescing handler writing to {@code next}, or {@code next} itself if the configuration does not
      *         allow coalescing.
      */
     public static ITemplateHandler create(
-            final IEngineConfiguration configuration, final TemplateMode templateMode, final ITemplateHandler next) {
-        final StaticMarkupPolicy policy = StaticMarkupPolicy.forConfiguration(configuration, templateMode);
+            final IEngineConfiguration configuration, final TemplateMode templateMode, final ITemplateHandler next,
+            final Set<Class<? extends IDialect>> trustedDialectTypes) {
+        final StaticMarkupPolicy policy =
+                StaticMarkupPolicy.forConfiguration(configuration, templateMode, trustedDialectTypes);
         if (!policy.isEnabled()) {
             if (disabledWarningLogged.compareAndSet(false, true)) {
                 logger.warn("[THYMELEAF] Static-run coalescing is disabled: {}", policy.getDisabledReason());

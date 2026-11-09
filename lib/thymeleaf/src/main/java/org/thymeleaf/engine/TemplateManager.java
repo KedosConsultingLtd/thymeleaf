@@ -455,9 +455,10 @@ public final class TemplateManager {
          */
         final ITemplateParser parser = getParserForTemplateMode(templateData.getTemplateMode());
         // NO RESOURCE is sent to the parser, in this case. We simply pass the String template
-        parser.parseString(
-                this.configuration, ownerTemplate, template, lineOffset, colOffset, definitiveTemplateMode,
-                this.parseFilters.wrap(definitiveTemplateMode, builderHandler));
+        // Kedos: parse filters are NOT applied here. parseString() parses strings produced at runtime (model data
+        // via IModelFactory.parse, th:utext, inliner and attribute re-parses), which must reach callers exactly as
+        // parsed: filters are for template resources only.
+        parser.parseString(this.configuration, ownerTemplate, template, lineOffset, colOffset, definitiveTemplateMode, builderHandler);
 
         final TemplateModel parsedTemplate = builderHandler.getModel();
 

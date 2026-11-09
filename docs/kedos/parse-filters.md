@@ -17,9 +17,12 @@ flowchart LR
   C --> O[Output]
 ```
 
-- Every parse route goes through the filters: cacheable and non-cacheable templates, fragment selection
-  (`th:insert`/`th:replace` with `::`), `TemplateManager.parseString`, and throttled (reactive) processing.
-  Dev (cache off) and prod (cache on) therefore produce the same output.
+- Every parse of a **template resource** goes through the filters: cacheable and non-cacheable templates,
+  fragment selection (`th:insert`/`th:replace` with `::`), and throttled (reactive) processing. Dev (cache off)
+  and prod (cache on) therefore produce the same output.
+- Strings parsed at runtime (`TemplateManager.parseString`: `IModelFactory.parse`, `th:utext` re-parses, inliner
+  and attribute re-parses) are **never** filtered. They contain model data, and callers such as sanitising
+  dialects must see exactly what the parser produced (see `security-audit.md`, finding 3).
 - Filters see **template markup only**. Text produced while processing (`th:text`, `th:utext`, inlined
   expressions, content from other dialects) never passes through them.
 
@@ -98,9 +101,9 @@ flowchart LR
 | Event | Static when |
 |---|---|
 | Element (open + close, or standalone) | No processor is associated with the tag, and every descendant is static |
-| Text | Not inlineable (no `[[...]]` / `[(...)]`), and the only text processors configured are the standard inlining one |
-| Comment | Not inlineable, contains no `[` (rules out conditional comments), and only standard comment processors are configured |
-| CDATA | Not inlineable, and only the standard inlining CDATA processor is configured |
+| Text | Contains no `[` at all, and the only text processors configured are the standard inlining one. Every inlining syntax of every mode starts with `[`, and an ancestor can switch the mode at render time (`th:inline`) |
+| Comment | Contains no `[` (rules out inlining and conditional comments), and only standard comment processors are configured |
+| CDATA | Contains no `[`, and only the standard inlining CDATA processor is configured |
 | DOCTYPE, XML declaration, processing instruction, unmatched close tag | Never |
 
 ### Element events that are always kept
@@ -112,8 +115,22 @@ flowchart LR
 | Everything inside an element with a model processor | Model processors receive and may inspect the element's whole model |
 | A whitespace-only text right before an element | `th:each` repeats the whitespace text preceding the iterated element between iterations |
 
-**When it switches itself off:** if any pre-processor or post-processor is configured for HTML, coalescing is
-disabled and a warning is logged once. Those processors observe the event stream, which coalescing would change.
+**When it switches itself off** (a warning is logged once):
+- **Pre- or post-processors are configured for HTML.** They observe the event stream, which coalescing would
+  change.
+- **A dialect with element model processors is configured and not trusted.** Model processors may inspect the
+  markup of this or other templates; for example, a layout/decorator dialect walks a decorator's `<head>`.
+
+The Standard and Spring Standard dialects have no model processors. To use coalescing alongside your own
+dialect, review its model processors and pass it as trusted:
+
+```java
+new StaticRunCoalescingDialect(Set.of(MyDialect.class))
+```
+
+Do **not** trust layout/decorator dialects.
+
+**Templates nested deeper than 256 levels** are passed through unchanged.
 
 ### Verification
 
@@ -142,7 +159,7 @@ disabled and a warning is logged once. Those processors observe the event stream
 | Test class | Cases |
 |---|---|
 | `tests/thymeleaf-tests-core/.../parsefilter/WhitespaceCollapsingParseFilterTest` | 19 |
-| `tests/thymeleaf-tests-core/.../parsefilter/StaticRunCoalescingParseFilterTest` | 14 |
+| `tests/thymeleaf-tests-core/.../parsefilter/StaticRunCoalescingParseFilterTest` | 18 |
 
 The full core suite passes with and without coalescing enabled.
 
