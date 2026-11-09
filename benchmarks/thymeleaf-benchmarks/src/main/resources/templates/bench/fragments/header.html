@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<header class="site-header" th:fragment="header">
+    <div class="announcement-bar">
+        <p class="announcement-bar__text">Free delivery on orders over £50. Free returns within 30 days.</p>
+    </div>
+    <div class="site-header__inner">
+        <a class="site-header__logo" href="/" aria-label="Home">
+            <svg width="140" height="32" viewBox="0 0 140 32" aria-hidden="true">
+                <rect x="0" y="0" width="32" height="32" rx="6" fill="#1f2a44"></rect>
+                <path d="M8 24V8h4l8 10V8h4v16h-4l-8-10v10z" fill="#ffffff"></path>
+            </svg>
+        </a>
+        <form class="site-search" action="/search" method="get" role="search">
+            <label class="visually-hidden" for="q" th:text="#{nav.search}">Search</label>
+            <input class="site-search__input" type="search" id="q" name="q" th:placeholder="#{nav.search.placeholder}">
+            <button class="site-search__button" type="submit">
+                <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" fill="none"></circle><path d="M13 13l5 5" stroke="currentColor"></path></svg>
+                <span class="visually-hidden" th:text="#{nav.search}">Search</span>
+            </button>
+        </form>
+        <ul class="site-header__actions">
+            <li><a class="site-header__account" href="/account" th:text="#{nav.account(${customerName})}">Account</a></li>
+            <li><a class="site-header__basket" href="/basket" th:text="#{nav.basket(${basketCount})}">Basket</a></li>
+        </ul>
+    </div>
+    <nav class="mega-menu" aria-label="Main">
+        <ul class="mega-menu__top">
+            <li class="mega-menu__item" th:each="top : ${menu}">
+                <a class="mega-menu__link" th:href="@{~/c/{slug}(slug=${top.slug})}" th:text="${top.name}">Department</a>
+                <div class="mega-menu__panel">
+                    <div class="mega-menu__columns">
+                        <div class="mega-menu__column" th:each="column : ${top.children}">
+                            <h3 class="mega-menu__heading">
+                                <a th:href="@{~/c/{slug}(slug=${column.slug})}" th:text="${column.name}">Section</a>
+                            </h3>
+                            <ul class="mega-menu__links">
+                                <li class="mega-menu__links-item" th:each="link : ${column.children}">
+                                    <a class="mega-menu__links-link" th:href="@{~/c/{slug}(slug=${link.slug})}" th:text="${link.name}">Link</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <aside class="mega-menu__promo">
+                        <img class="mega-menu__promo-image" src="https://images.example.com/promo/menu.jpg" alt="" width="320" height="200" loading="lazy">
+                        <p class="mega-menu__promo-title">The field collection</p>
+                        <p class="mega-menu__promo-text">Waxed cotton, wool and leather, made to be worn hard and handed down.</p>
+                        <a class="mega-menu__promo-link" th:href="@{~/c/{slug}(slug=${top.slug})}" th:text="#{nav.viewAll(${top.name})}">View all</a>
+                    </aside>
+                </div>
+            </li>
+        </ul>
+    </nav>
+    <nav class="mobile-menu" aria-label="Mobile">
+        <details class="mobile-menu__toggle">
+            <summary th:text="#{nav.menu}">Menu</summary>
+            <ul class="mobile-menu__list">
+                <li class="mobile-menu__item" th:each="top : ${menu}">
+                    <details>
+                        <summary th:text="${top.name}">Department</summary>
+                        <ul class="mobile-menu__sublist">
+                            <li th:each="column : ${top.children}">
+                                <a th:href="@{~/c/{slug}(slug=${column.slug})}" th:text="${column.name}">Section</a>
+                            </li>
+                        </ul>
+                    </details>
+                </li>
+            </ul>
+        </details>
+    </nav>
+</header>
+</body>
+</html>

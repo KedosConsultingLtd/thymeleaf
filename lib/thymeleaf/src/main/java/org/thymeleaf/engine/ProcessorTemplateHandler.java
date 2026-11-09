@@ -527,9 +527,10 @@ public final class ProcessorTemplateHandler implements ITemplateHandler {
 
 
         /*
-         * FAIL FAST in case this structure has no associated processors.
+         * FAIL FAST in case this structure has no associated processors, or it is pre-rendered static markup
+         * produced by static-run coalescing at parse time (which must never be processed).
          */
-        if (this.textProcessors.length == 0) {
+        if (this.textProcessors.length == 0 || (itext instanceof Text && ((Text) itext).isStaticMarkup())) {
             this.next.handleText(itext);
             return;
         }

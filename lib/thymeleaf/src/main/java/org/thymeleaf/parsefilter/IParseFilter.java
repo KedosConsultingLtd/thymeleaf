@@ -19,6 +19,7 @@
  */
 package org.thymeleaf.parsefilter;
 
+import org.thymeleaf.IEngineConfiguration;
 import org.thymeleaf.engine.ITemplateHandler;
 import org.thymeleaf.templatemode.TemplateMode;
 
@@ -61,9 +62,10 @@ public interface IParseFilter {
      *   requested for every template parsed, so implementations may keep per-template state.
      * </p>
      *
+     * @param configuration the configuration of the engine parsing the template.
      * @param next the handler that must receive the (filtered) events.
-     * @return the filtering handler.
+     * @return the filtering handler, or {@code next} itself if this filter has nothing to do for this configuration.
      */
-    public ITemplateHandler createHandler(final ITemplateHandler next);
+    public ITemplateHandler createHandler(final IEngineConfiguration configuration, final ITemplateHandler next);
 
 }

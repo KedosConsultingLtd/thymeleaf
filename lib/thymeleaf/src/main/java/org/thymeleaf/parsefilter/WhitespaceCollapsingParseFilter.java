@@ -19,6 +19,7 @@
  */
 package org.thymeleaf.parsefilter;
 
+import org.thymeleaf.IEngineConfiguration;
 import org.thymeleaf.engine.ITemplateHandler;
 import org.thymeleaf.engine.WhitespaceCollapsingTemplateHandler;
 import org.thymeleaf.templatemode.TemplateMode;
@@ -55,7 +56,7 @@ public final class WhitespaceCollapsingParseFilter implements IParseFilter {
         return this.precedence;
     }
 
-    public ITemplateHandler createHandler(final ITemplateHandler next) {
+    public ITemplateHandler createHandler(final IEngineConfiguration configuration, final ITemplateHandler next) {
         return new WhitespaceCollapsingTemplateHandler(next);
     }
 

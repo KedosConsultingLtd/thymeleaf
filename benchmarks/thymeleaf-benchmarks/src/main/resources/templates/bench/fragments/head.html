@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${title} + ' | ' + #{site.name}">Title</title>
+    <meta name="description" content="Northwind Supply Co. makes hard-wearing clothing and goods for everyday life.">
+    <link rel="preconnect" href="https://images.example.com">
+    <link rel="stylesheet" href="/assets/css/main.3f9a2c.css">
+    <link rel="stylesheet" href="/assets/css/components.8d01be.css">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png">
+    <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
+    <style>
+        :root { --brand: #1f2a44; --accent: #c2b280; --text: #1d2420; }
+        .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    </style>
+    <script th:inline="javascript">
+        window.storefront = {
+            basketCount: /*[[${basketCount}]]*/ 0,
+            locale: 'en-GB'
+        };
+    </script>
+    <script src="/assets/js/main.71c4e0.js" defer></script>
+</head>
+</html>

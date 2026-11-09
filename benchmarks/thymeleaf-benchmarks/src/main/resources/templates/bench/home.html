@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{bench/fragments/head :: head(${pageTitle})}">
+    <title>Home</title>
+</head>
+<body class="page page--home">
+    <header th:replace="~{bench/fragments/header :: header}"></header>
+    <main class="page__main" id="main">
+        <section class="hero">
+            <picture class="hero__picture">
+                <source media="(min-width: 960px)" srcset="https://images.example.com/hero/wide.jpg 1x, https://images.example.com/hero/wide@2x.jpg 2x">
+                <img class="hero__image" src="https://images.example.com/hero/narrow.jpg" alt="Waxed jackets hanging in the workshop" width="960" height="540">
+            </picture>
+            <div class="hero__content">
+                <p class="hero__eyebrow">Autumn / Winter 2026</p>
+                <h1 class="hero__title">Made for weather, built to last</h1>
+                <p class="hero__text">Our new outerwear is cut from British waxed cotton and lined with recycled wool. Every piece is repairable for life.</p>
+                <div class="hero__actions">
+                    <a class="button button--primary" href="/c/outerwear">Shop outerwear</a>
+                    <a class="button button--ghost" href="/about/workshop">Visit the workshop</a>
+                </div>
+            </div>
+        </section>
+        <section class="usp-bar">
+            <ul class="usp-bar__list">
+                <li class="usp-bar__item"><strong>Free delivery</strong> on orders over £50</li>
+                <li class="usp-bar__item"><strong>Free returns</strong> within 30 days</li>
+                <li class="usp-bar__item"><strong>Repairs for life</strong> on all outerwear</li>
+                <li class="usp-bar__item"><strong>Carbon neutral</strong> shipping</li>
+            </ul>
+        </section>
+        <section class="department-tiles">
+            <h2 class="section-title" th:text="#{home.departments}">Departments</h2>
+            <ul class="department-tiles__grid">
+                <li class="department-tiles__tile" th:each="top : ${menu}">
+                    <a class="department-tiles__link" th:href="@{~/c/{slug}(slug=${top.slug})}">
+                        <img class="department-tiles__image" th:src="@{https://images.example.com/departments/{slug}.jpg(slug=${top.slug})}" alt="" width="300" height="300" loading="lazy">
+                        <span class="department-tiles__name" th:text="${top.name}">Department</span>
+                    </a>
+                </li>
+            </ul>
+        </section>
+        <section class="featured">
+            <h2 class="section-title" th:text="#{home.featured}">Featured</h2>
+            <div class="product-grid product-grid--4">
+                <th:block th:each="product : ${featured}">
+                    <article th:replace="~{bench/fragments/product-card :: card(${product})}"></article>
+                </th:block>
+            </div>
+        </section>
+        <section class="story">
+            <div class="story__media">
+                <img src="https://images.example.com/story/workshop.jpg" alt="A tailor at work" width="640" height="480" loading="lazy">
+            </div>
+            <div class="story__content">
+                <h2 class="story__title">From our workshop</h2>
+                <p>Every jacket passes through eleven pairs of hands before it reaches you. We cut, sew, wax and finish in the same building, and we keep a record of who made each piece.</p>
+                <p>When something wears out, send it back. We will repair it, re-wax it, or recycle the cloth into something new.</p>
+                <a class="link-arrow" href="/about/workshop">Read the story</a>
+            </div>
+        </section>
+    </main>
+    <footer th:replace="~{bench/fragments/footer :: footer}"></footer>
+</body>
+</html>

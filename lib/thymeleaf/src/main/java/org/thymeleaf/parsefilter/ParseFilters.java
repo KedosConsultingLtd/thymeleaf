@@ -43,7 +43,7 @@ import org.thymeleaf.util.Validate;
  */
 public final class ParseFilters {
 
-    private static final ParseFilters NONE = new ParseFilters(Collections.<TemplateMode, List<IParseFilter>>emptyMap());
+    private static final ParseFilters NONE = new ParseFilters(null, Collections.<TemplateMode, List<IParseFilter>>emptyMap());
 
     private static final Comparator<IParseFilter> PRECEDENCE_ORDER = new Comparator<IParseFilter>() {
         public int compare(final IParseFilter o1, final IParseFilter o2) {
@@ -51,6 +51,7 @@ public final class ParseFilters {
         }
     };
 
+    private final IEngineConfiguration configuration;
     private final Map<TemplateMode, List<IParseFilter>> filtersByTemplateMode;
 
 
@@ -69,7 +70,7 @@ public final class ParseFilters {
             Collections.sort(entry.getValue(), PRECEDENCE_ORDER);
             entry.setValue(Collections.unmodifiableList(entry.getValue()));
         }
-        return new ParseFilters(Collections.unmodifiableMap(filtersByTemplateMode));
+        return new ParseFilters(configuration, Collections.unmodifiableMap(filtersByTemplateMode));
     }
 
 
@@ -93,8 +94,10 @@ public final class ParseFilters {
     }
 
 
-    private ParseFilters(final Map<TemplateMode, List<IParseFilter>> filtersByTemplateMode) {
+    private ParseFilters(
+            final IEngineConfiguration configuration, final Map<TemplateMode, List<IParseFilter>> filtersByTemplateMode) {
         super();
+        this.configuration = configuration;
         this.filtersByTemplateMode = filtersByTemplateMode;
     }
 
@@ -121,7 +124,7 @@ public final class ParseFilters {
         }
         ITemplateHandler handler = target;
         for (int i = filters.size() - 1; i >= 0; i--) {
-            handler = filters.get(i).createHandler(handler);
+            handler = filters.get(i).createHandler(this.configuration, handler);
         }
         return handler;
     }

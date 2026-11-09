@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<footer class="site-footer" th:fragment="footer">
+    <section class="site-footer__newsletter">
+        <h2 class="site-footer__heading" th:text="#{footer.newsletter}">Newsletter</h2>
+        <p>New collections, workshop stories and the occasional early sale. No more than twice a month.</p>
+        <form class="newsletter-form" action="/newsletter" method="post">
+            <label class="visually-hidden" for="newsletter-email">Email address</label>
+            <input class="newsletter-form__input" type="email" id="newsletter-email" name="email" placeholder="you@example.com" required>
+            <button class="button button--secondary" type="submit">Sign up</button>
+        </form>
+    </section>
+    <div class="site-footer__columns">
+        <div class="site-footer__column">
+            <h3 class="site-footer__title">Help</h3>
+            <ul class="site-footer__links">
+                <li><a href="/help/delivery">Delivery</a></li>
+                <li><a href="/help/returns">Returns and refunds</a></li>
+                <li><a href="/help/sizing">Size guide</a></li>
+                <li><a href="/help/care">Garment care</a></li>
+                <li><a href="/help/contact">Contact us</a></li>
+                <li><a href="/help/faq">FAQs</a></li>
+            </ul>
+        </div>
+        <div class="site-footer__column">
+            <h3 class="site-footer__title">About</h3>
+            <ul class="site-footer__links">
+                <li><a href="/about/story">Our story</a></li>
+                <li><a href="/about/workshop">The workshop</a></li>
+                <li><a href="/about/materials">Materials</a></li>
+                <li><a href="/about/sustainability">Sustainability</a></li>
+                <li><a href="/about/careers">Careers</a></li>
+                <li><a href="/about/press">Press</a></li>
+            </ul>
+        </div>
+        <div class="site-footer__column">
+            <h3 class="site-footer__title">Stores</h3>
+            <ul class="site-footer__links">
+                <li><a href="/stores/london">London</a></li>
+                <li><a href="/stores/edinburgh">Edinburgh</a></li>
+                <li><a href="/stores/manchester">Manchester</a></li>
+                <li><a href="/stores/bristol">Bristol</a></li>
+                <li><a href="/stores/amsterdam">Amsterdam</a></li>
+                <li><a href="/stores">All stores</a></li>
+            </ul>
+        </div>
+        <div class="site-footer__column">
+            <h3 class="site-footer__title">Follow us</h3>
+            <ul class="site-footer__social">
+                <li><a href="https://social.example.com/northwind" rel="noopener"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="2" width="16" height="16" rx="4" stroke="currentColor" fill="none"></rect></svg><span class="visually-hidden">Instagram</span></a></li>
+                <li><a href="https://video.example.com/northwind" rel="noopener"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 5l8 5-8 5z" fill="currentColor"></path></svg><span class="visually-hidden">YouTube</span></a></li>
+                <li><a href="https://pins.example.com/northwind" rel="noopener"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" stroke="currentColor" fill="none"></circle></svg><span class="visually-hidden">Pinterest</span></a></li>
+            </ul>
+        </div>
+    </div>
+    <div class="site-footer__legal">
+        <p th:text="#{footer.copyright}">Copyright</p>
+        <ul class="site-footer__legal-links">
+            <li><a href="/legal/terms">Terms and conditions</a></li>
+            <li><a href="/legal/privacy">Privacy policy</a></li>
+            <li><a href="/legal/cookies">Cookie settings</a></li>
+            <li><a href="/legal/accessibility">Accessibility</a></li>
+        </ul>
+        <div class="site-footer__payments" aria-label="Payment methods">
+            <span class="payment-icon payment-icon--visa">Visa</span>
+            <span class="payment-icon payment-icon--mastercard">Mastercard</span>
+            <span class="payment-icon payment-icon--amex">American Express</span>
+            <span class="payment-icon payment-icon--paypal">PayPal</span>
+            <span class="payment-icon payment-icon--applepay">Apple Pay</span>
+        </div>
+    </div>
+</footer>
+</body>
+</html>

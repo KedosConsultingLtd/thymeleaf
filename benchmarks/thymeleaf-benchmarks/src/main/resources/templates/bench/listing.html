@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{bench/fragments/head :: head(${pageTitle})}">
+    <title>Listing</title>
+</head>
+<body class="page page--listing">
+    <header th:replace="~{bench/fragments/header :: header}"></header>
+    <main class="page__main" id="main">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol class="breadcrumb__list">
+                <li class="breadcrumb__item"><a href="/">Home</a></li>
+                <li class="breadcrumb__item" aria-current="page" th:text="${category.name}">Category</li>
+            </ol>
+        </nav>
+        <div class="listing">
+            <aside class="listing__filters">
+                <h2 class="listing__filters-title" th:text="#{listing.filter}">Filter</h2>
+                <fieldset class="facet">
+                    <legend class="facet__title" th:text="#{listing.brand}">Brand</legend>
+                    <ul class="facet__options">
+                        <li class="facet__option"><label><input type="checkbox" name="brand" value="northwind"> Northwind</label></li>
+                        <li class="facet__option"><label><input type="checkbox" name="brand" value="halden"> Halden</label></li>
+                        <li class="facet__option"><label><input type="checkbox" name="brand" value="atelier-nine"> Atelier Nine</label></li>
+                        <li class="facet__option"><label><input type="checkbox" name="brand" value="copperline"> Copperline</label></li>
+                        <li class="facet__option"><label><input type="checkbox" name="brand" value="fieldnote"> Fieldnote</label></li>
+                    </ul>
+                </fieldset>
+                <fieldset class="facet">
+                    <legend class="facet__title">Section</legend>
+                    <ul class="facet__options">
+                        <li class="facet__option" th:each="column : ${category.children}">
+                            <a class="facet__link" th:href="@{~/c/{slug}(slug=${column.slug})}" th:text="${column.name}">Section</a>
+                        </li>
+                    </ul>
+                </fieldset>
+                <fieldset class="facet">
+                    <legend class="facet__title" th:text="#{listing.colour}">Colour</legend>
+                    <ul class="facet__options facet__options--swatches">
+                        <li><label class="swatch-option"><input type="checkbox" name="colour" value="navy"><span class="swatch" style="background-color: #1f2a44"></span> Navy</label></li>
+                        <li><label class="swatch-option"><input type="checkbox" name="colour" value="tan"><span class="swatch" style="background-color: #8b5e3c"></span> Tan</label></li>
+                        <li><label class="swatch-option"><input type="checkbox" name="colour" value="green"><span class="swatch" style="background-color: #2f6b4f"></span> Green</label></li>
+                        <li><label class="swatch-option"><input type="checkbox" name="colour" value="sand"><span class="swatch" style="background-color: #c2b280"></span> Sand</label></li>
+                        <li><label class="swatch-option"><input type="checkbox" name="colour" value="black"><span class="swatch" style="background-color: #111111"></span> Black</label></li>
+                    </ul>
+                </fieldset>
+            </aside>
+            <section class="listing__results">
+                <div class="listing__toolbar">
+                    <h1 class="listing__title" th:text="${category.name}">Category</h1>
+                    <p class="listing__count" th:text="#{listing.results(${#lists.size(products)})}">0 products</p>
+                    <label class="listing__sort">
+                        <span th:text="#{listing.sort}">Sort by</span>
+                        <select name="sort">
+                            <option value="relevance" selected>Relevance</option>
+                            <option value="newest">Newest</option>
+                            <option value="price-asc">Price: low to high</option>
+                            <option value="price-desc">Price: high to low</option>
+                            <option value="rating">Customer rating</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="product-grid product-grid--3">
+                    <th:block th:each="product : ${products}">
+                        <article th:replace="~{bench/fragments/product-card :: card(${product})}"></article>
+                    </th:block>
+                </div>
+                <nav class="pagination" aria-label="Pagination">
+                    <a class="pagination__previous" th:href="@{~/c/{slug}(slug=${category.slug},page=${currentPage - 1})}" th:text="#{listing.previous}">Previous</a>
+                    <ol class="pagination__pages">
+                        <li th:each="page : ${#numbers.sequence(1, pageCount)}">
+                            <a class="pagination__page" th:href="@{~/c/{slug}(slug=${category.slug},page=${page})}"
+                               th:classappend="${page == currentPage} ? 'is-current'" th:text="${page}">1</a>
+                        </li>
+                    </ol>
+                    <a class="pagination__next" th:href="@{~/c/{slug}(slug=${category.slug},page=${currentPage + 1})}" th:text="#{listing.next}">Next</a>
+                    <p class="pagination__status" th:text="#{listing.page(${currentPage}, ${pageCount})}">Page 1 of 1</p>
+                </nav>
+            </section>
+        </div>
+    </main>
+    <footer th:replace="~{bench/fragments/footer :: footer}"></footer>
+</body>
+</html>

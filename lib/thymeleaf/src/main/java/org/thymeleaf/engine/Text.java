@@ -35,13 +35,32 @@ final class Text extends AbstractTextualTemplateEvent implements IText {
 
 
 
+    /*
+     * Kedos: true for text created at parse time by static-run coalescing, i.e. pre-rendered markup that must be
+     * written as-is. Such text never goes through text processors (inlining, etc.).
+     */
+    private final boolean staticMarkup;
+
+
     Text(final CharSequence text) {
         super(text);
+        this.staticMarkup = false;
     }
 
 
     Text(final CharSequence text, final String templateName, final int line, final int col) {
+        this(text, templateName, line, col, false);
+    }
+
+
+    Text(final CharSequence text, final String templateName, final int line, final int col, final boolean staticMarkup) {
         super(text, templateName, line, col);
+        this.staticMarkup = staticMarkup;
+    }
+
+
+    boolean isStaticMarkup() {
+        return this.staticMarkup;
     }
 
 

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<article class="product-card" th:fragment="card(product)">
+    <a class="product-card__media" th:href="@{~/product/{slug}(slug=${product.slug})}">
+        <img class="product-card__image" th:src="${product.imageUrl}" th:alt="${product.name}" width="400" height="500" loading="lazy">
+        <span class="badge badge--sale" th:if="${product.wasPrice != null}" th:text="#{badge.sale}">Sale</span>
+    </a>
+    <div class="product-card__body">
+        <p class="product-card__brand" th:text="${product.brand}">Brand</p>
+        <h3 class="product-card__title">
+            <a th:href="@{~/product/{slug}(slug=${product.slug})}" th:text="${product.name}">Product name</a>
+        </h3>
+        <div class="product-card__rating" th:attr="aria-label=#{rating.label(${product.rating})}">
+            <span class="star" th:each="star : ${#numbers.sequence(1, 5)}" th:classappend="${star <= product.rating} ? 'star--on' : 'star--off'">&#9733;</span>
+            <span class="product-card__reviews" th:text="#{rating.count(${product.reviewCount})}">(0 reviews)</span>
+        </div>
+        <p class="product-card__price">
+            <span class="price" th:text="|£${#numbers.formatDecimal(product.price, 1, 'COMMA', 2, 'POINT')}|">£0.00</span>
+            <s class="price price--was" th:if="${product.wasPrice != null}" th:text="|£${#numbers.formatDecimal(product.wasPrice, 1, 'COMMA', 2, 'POINT')}|">£0.00</s>
+        </p>
+        <ul class="product-card__swatches">
+            <li th:each="colour : ${product.colours}">
+                <span class="swatch" th:style="|background-color: ${colour}|" th:title="${colour}"></span>
+            </li>
+        </ul>
+        <form class="product-card__form" method="post" th:action="@{~/basket/add}">
+            <input type="hidden" name="productId" th:value="${product.id}">
+            <input type="hidden" name="quantity" value="1">
+            <button class="button button--primary" type="submit" th:disabled="${!product.inStock}"
+                    th:text="${product.inStock} ? #{basket.add} : #{stock.out}">Add to basket</button>
+        </form>
+    </div>
+</article>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{bench/fragments/head :: head(${pageTitle})}">
+    <title>Product</title>
+</head>
+<body class="page page--product">
+    <header th:replace="~{bench/fragments/header :: header}"></header>
+    <main class="page__main" id="main" th:object="${product}">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol class="breadcrumb__list">
+                <li class="breadcrumb__item"><a href="/">Home</a></li>
+                <li class="breadcrumb__item"><a href="/c/cat-1">Department 1</a></li>
+                <li class="breadcrumb__item" aria-current="page" th:text="*{name}">Product</li>
+            </ol>
+        </nav>
+        <div class="product">
+            <section class="product__gallery">
+                <ul class="gallery">
+                    <li class="gallery__item" th:each="image, status : *{imageUrls}">
+                        <img class="gallery__image" th:src="${image}" th:alt="|*{name} image ${status.count}|" width="800" height="1000"
+                             th:attr="loading=${status.first} ? 'eager' : 'lazy'">
+                    </li>
+                </ul>
+            </section>
+            <section class="product__summary">
+                <p class="product__brand" th:text="*{brand}">Brand</p>
+                <h1 class="product__title" th:text="*{name}">Product name</h1>
+                <div class="product__rating" th:attr="aria-label=#{rating.label(*{rating})}">
+                    <span class="star" th:each="star : ${#numbers.sequence(1, 5)}" th:classappend="${star <= product.rating} ? 'star--on' : 'star--off'">&#9733;</span>
+                    <a class="product__reviews-link" href="#reviews" th:text="#{rating.count(*{reviewCount})}">(0 reviews)</a>
+                </div>
+                <p class="product__price">
+                    <span class="price price--large" th:text="|£${#numbers.formatDecimal(product.price, 1, 'COMMA', 2, 'POINT')}|">£0.00</span>
+                    <s class="price price--was" th:if="*{wasPrice != null}" th:text="|£${#numbers.formatDecimal(product.wasPrice, 1, 'COMMA', 2, 'POINT')}|">£0.00</s>
+                </p>
+                <form class="product__form" method="post" th:action="@{~/basket/add}">
+                    <input type="hidden" name="productId" th:value="*{id}">
+                    <fieldset class="product__option">
+                        <legend th:text="#{product.colour}">Colour</legend>
+                        <label class="swatch-option" th:each="colour, status : *{colours}">
+                            <input type="radio" name="colour" th:value="${colour}" th:checked="${status.first}">
+                            <span class="swatch" th:style="|background-color: ${colour}|"></span>
+                        </label>
+                    </fieldset>
+                    <label class="product__option">
+                        <span th:text="#{product.size}">Size</span>
+                        <select name="size">
+                            <option value="xs">XS</option>
+                            <option value="s">S</option>
+                            <option value="m" selected>M</option>
+                            <option value="l">L</option>
+                            <option value="xl">XL</option>
+                            <option value="xxl">XXL</option>
+                        </select>
+                    </label>
+                    <p class="product__stock" th:text="*{inStock} ? #{stock.in} : #{stock.out}">In stock</p>
+                    <button class="button button--primary button--large" type="submit" th:disabled="*{!inStock}" th:text="#{basket.add}">Add to basket</button>
+                </form>
+                <div class="accordion">
+                    <details class="accordion__item" open>
+                        <summary th:text="#{product.description}">Description</summary>
+                        <div class="accordion__content">
+                            <p th:text="*{description}">Description</p>
+                            <ul>
+                                <li>Outer: 100% British waxed cotton</li>
+                                <li>Lining: 80% recycled wool, 20% polyamide</li>
+                                <li>Corozo buttons, brass zip</li>
+                                <li>Made in our Northumberland workshop</li>
+                            </ul>
+                        </div>
+                    </details>
+                    <details class="accordion__item">
+                        <summary th:text="#{product.delivery}">Delivery</summary>
+                        <div class="accordion__content">
+                            <p>Standard delivery in 2 to 4 working days, free over £50. Next-day delivery available for orders placed before 2pm.</p>
+                            <p>Return any unworn item within 30 days for a full refund. Repairs are free for the lifetime of the garment.</p>
+                        </div>
+                    </details>
+                </div>
+            </section>
+        </div>
+        <section class="reviews" id="reviews">
+            <h2 class="section-title" th:text="#{product.reviews}">Reviews</h2>
+            <ol class="reviews__list">
+                <li class="review" th:each="review : ${reviews}">
+                    <div class="review__rating">
+                        <span class="star" th:each="star : ${#numbers.sequence(1, 5)}" th:classappend="${star <= review.rating} ? 'star--on' : 'star--off'">&#9733;</span>
+                    </div>
+                    <h3 class="review__title" th:text="${review.title}">Title</h3>
+                    <p class="review__body" th:text="${review.body}">Body</p>
+                    <p class="review__author">by <span th:text="${review.author}">Author</span></p>
+                </li>
+            </ol>
+        </section>
+        <section class="related">
+            <h2 class="section-title" th:text="#{product.related}">Related</h2>
+            <div class="product-grid product-grid--4">
+                <th:block th:each="relatedProduct : ${related}">
+                    <article th:replace="~{bench/fragments/product-card :: card(${relatedProduct})}"></article>
+                </th:block>
+            </div>
+        </section>
+    </main>
+    <footer th:replace="~{bench/fragments/footer :: footer}"></footer>
+</body>
+</html>

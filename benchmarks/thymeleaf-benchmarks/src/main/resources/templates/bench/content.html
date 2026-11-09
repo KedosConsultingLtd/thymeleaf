@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{bench/fragments/head :: head(${pageTitle})}">
+    <title>Content</title>
+</head>
+<body class="page page--content">
+    <header th:replace="~{bench/fragments/header :: header}"></header>
+    <main class="page__main" id="main">
+        <article class="article">
+            <header class="article__header">
+                <p class="article__eyebrow">About us</p>
+                <h1 class="article__title" th:text="${pageTitle}">Our story</h1>
+                <p class="article__standfirst">How a two-person workshop became a company that still makes everything it sells.</p>
+            </header>
+            <nav class="article__toc" aria-label="Contents">
+                <ol>
+                    <li><a href="#section-1">Chapter 1</a></li>
+                    <li><a href="#section-2">Chapter 2</a></li>
+                    <li><a href="#section-3">Chapter 3</a></li>
+                    <li><a href="#section-4">Chapter 4</a></li>
+                    <li><a href="#section-5">Chapter 5</a></li>
+                    <li><a href="#section-6">Chapter 6</a></li>
+                    <li><a href="#section-7">Chapter 7</a></li>
+                    <li><a href="#section-8">Chapter 8</a></li>
+                </ol>
+            </nav>
+            <section class="article__section" id="section-1">
+                <h2 class="article__heading">Chapter 1</h2>
+                <p>We started in 2009 with two sewing machines and a borrowed cutting table. The first jackets took a week each, and we sold them from the back of a van at county shows across the north of England.</p>
+                <p>Today the workshop employs forty-two people. We still cut every jacket by hand, and we still wax the cotton in small batches, because that is the only way to get an even finish that wears in rather than wearing out.</p>
+                <p>Our cloth comes from a mill in Lancashire that has been weaving cotton since 1868. The wool for our linings is collected from post-consumer garments, sorted by colour and re-spun without dyes.</p>
+                <p>We publish the full cost breakdown of every product we make: materials, labour, transport, overheads and margin. We think you should know what you are paying for.</p>
+                <p>When a jacket comes back for repair we log the fault, the fix and the time it took. That record shapes the next pattern: pockets have moved, seams have been doubled and cuffs reinforced because of it.</p>
+                <figure class="article__figure">
+                    <img src="https://images.example.com/story/1.jpg" alt="Workshop photograph 1" width="960" height="640" loading="lazy">
+                    <figcaption>Photograph 1: inside the Northumberland workshop.</figcaption>
+                </figure>
+                <blockquote class="article__quote">
+                    <p>Make it once, make it well, and be ready to mend it.</p>
+                    <cite>Founder's notebook, entry 1</cite>
+                </blockquote>
+            </section>
+            <section class="article__section" id="section-2">
+                <h2 class="article__heading">Chapter 2</h2>
+                <p>We started in 2009 with two sewing machines and a borrowed cutting table. The first jackets took a week each, and we sold them from the back of a van at county shows across the north of England.</p>
+                <p>Today the workshop employs forty-two people. We still cut every jacket by hand, and we still wax the cotton in small batches, because that is the only way to get an even finish that wears in rather than wearing out.</p>
+                <p>Our cloth comes from a mill in Lancashire that has been weaving cotton since 1868. The wool for our linings is collected from post-consumer garments, sorted by colour and re-spun without dyes.</p>
+                <p>We publish the full cost breakdown of every product we make: materials, labour, transport, overheads and margin. We think you should know what you are paying for.</p>
+                <p>When a jacket comes back for repair we log the fault, the fix and the time it took. That record shapes the next pattern: pockets have moved, seams have been doubled and cuffs reinforced because of it.</p>
+                <figure class="article__figure">
+                    <img src="https://images.example.com/story/2.jpg" alt="Workshop photograph 2" width="960" height="640" loading="lazy">
+                    <figcaption>Photograph 2: inside the Northumberland workshop.</figcaption>
+                </figure>
+                <blockquote class="article__quote">
+                    <p>Make it once, make it well, and be ready to mend it.</p>
+                    <cite>Founder's notebook, entry 2</cite>
+                </blockquote>
+            </section>
+            <section class="article__section" id="section-3">
+                <h2 class="article__heading">Chapter 3</h2>
+                <p>We started in 2009 with two sewing machines and a borrowed cutting table. The first jackets took a week each, and we sold them from the back of a van at county shows across the north of England.</p>
+                <p>Today the workshop employs forty-two people. We still cut every jacket by hand, and we still wax the cotton in small batches, because that is the only way to get an even finish that wears in rather than wearing out.</p>
+                <p>Our cloth comes from a mill in Lancashire that has been weaving cotton since 1868. The wool for our linings is collected from post-consumer garments, sorted by colour and re-spun without dyes.</p>
+                <p>We publish the full cost breakdown of every product we make: materials, labour, transport, overheads and margin. We think you should know what you are paying for.</p>
+                <p>When a jacket comes back for repair we log the fault, the fix and the time it took. That record shapes the next pattern: pockets have moved, seams have been doubled and cuffs reinforced because of it.</p>
+                <figure class="article__figure">
+                    <img src="https://images.example.com/story/3.jpg" alt="Workshop photograph 3" width="960" height="640" loading="lazy">
+                    <figcaption>Photograph 3: inside the Northumberland workshop.</figcaption>
+                </figure>
+                <blockquote class="article__quote">
+                    <p>Make it once, make it well, and be ready to mend it.</p>
+                    <cite>Founder's notebook, entry 3</cite>
+                </blockquote>
+            </section>
+            <section class="article__section" id="section-4">
+                <h2 class="article__heading">Chapter 4</h2>
+                <p>We started in 2009 with two sewing machines and a borrowed cutting table. The first jackets took a week each, and we sold them from the back of a van at county shows across the north of England.</p>
+                <p>Today the workshop employs forty-two people. We still cut every jacket by hand, and we still wax the cotton in small batches, because that is the only way to get an even finish that wears in rather than wearing out.</p>
+                <p>Our cloth comes from a mill in Lancashire that has been weaving cotton since 1868. The wool for our linings is collected from post-consumer garments, sorted by colour and re-spun without dyes.</p>
+                <p>We publish the full cost breakdown of every product we make: materials, labour, transport, overheads and margin. We think you should know what you are paying for.</p>
+                <p>When a jacket comes back for repair we log the fault, the fix and the time it took. That record shapes the next pattern: pockets have moved, seams have been doubled and cuffs reinforced because of it.</p>
+                <figure class="article__figure">
+                    <img src="https://images.example.com/story/4.jpg" alt="Workshop photograph 4" width="960" height="640" loading="lazy">
+                    <figcaption>Photograph 4: inside the Northumberland workshop.</figcaption>
+                </figure>
+                <blockquote class="article__quote">
+                    <p>Make it once, make it well, and be ready to mend it.</p>
+                    <cite>Founder's notebook, entry 4</cite>
+                </blockquote>
+            </section>
+            <section class="article__section" id="section-5">
+                <h2 class="article__heading">Chapter 5</h2>
+                <p>We started in 2009 with two sewing machines and a borrowed cutting table. The first jackets took a week each, and we sold them from the back of a van at county shows across the north of England.</p>
+                <p>Today the workshop employs forty-two people. We still cut every jacket by hand, and we still wax the cotton in small batches, because that is the only way to get an even finish that wears in rather than wearing out.</p>
+                <p>Our cloth comes from a mill in Lancashire that has been weaving cotton since 1868. The wool for our linings is collected from post-consumer garments, sorted by colour and re-spun without dyes.</p>
+                <p>We publish the full cost breakdown of every product we make: materials, labour, transport, overheads and margin. We think you should know what you are paying for.</p>
+                <p>When a jacket comes back for repair we log the fault, the fix and the time it took. That record shapes the next pattern: pockets have moved, seams have been doubled and cuffs reinforced because of it.</p>
+                <figure class="article__figure">
+                    <img src="https://images.example.com/story/5.jpg" alt="Workshop photograph 5" width="960" height="640" loading="lazy">
+                    <figcaption>Photograph 5: inside the Northumberland workshop.</figcaption>
+                </figure>
+                <blockquote class="article__quote">
+                    <p>Make it once, make it well, and be ready to mend it.</p>
+                    <cite>Founder's notebook, entry 5</cite>
+                </blockquote>
+            </section>
+            <section class="article__section" id="section-6">
+                <h2 class="article__heading">Chapter 6</h2>
+                <p>We started in 2009 with two sewing machines and a borrowed cutting table. The first jackets took a week each, and we sold them from the back of a van at county shows across the north of England.</p>
+                <p>Today the workshop employs forty-two people. We still cut every jacket by hand, and we still wax the cotton in small batches, because that is the only way to get an even finish that wears in rather than wearing out.</p>
+                <p>Our cloth comes from a mill in Lancashire that has been weaving cotton since 1868. The wool for our linings is collected from post-consumer garments, sorted by colour and re-spun without dyes.</p>
+                <p>We publish the full cost breakdown of every product we make: materials, labour, transport, overheads and margin. We think you should know what you are paying for.</p>
+                <p>When a jacket comes back for repair we log the fault, the fix and the time it took. That record shapes the next pattern: pockets have moved, seams have been doubled and cuffs reinforced because of it.</p>
+                <figure class="article__figure">
+                    <img src="https://images.example.com/story/6.jpg" alt="Workshop photograph 6" width="960" height="640" loading="lazy">
+                    <figcaption>Photograph 6: inside the Northumberland workshop.</figcaption>
+                </figure>
+                <blockquote class="article__quote">
+                    <p>Make it once, make it well, and be ready to mend it.</p>
+                    <cite>Founder's notebook, entry 6</cite>
+                </blockquote>
+            </section>
+            <section class="article__section" id="section-7">
+                <h2 class="article__heading">Chapter 7</h2>
+                <p>We started in 2009 with two sewing machines and a borrowed cutting table. The first jackets took a week each, and we sold them from the back of a van at county shows across the north of England.</p>
+                <p>Today the workshop employs forty-two people. We still cut every jacket by hand, and we still wax the cotton in small batches, because that is the only way to get an even finish that wears in rather than wearing out.</p>
+                <p>Our cloth comes from a mill in Lancashire that has been weaving cotton since 1868. The wool for our linings is collected from post-consumer garments, sorted by colour and re-spun without dyes.</p>
+                <p>We publish the full cost breakdown of every product we make: materials, labour, transport, overheads and margin. We think you should know what you are paying for.</p>
+                <p>When a jacket comes back for repair we log the fault, the fix and the time it took. That record shapes the next pattern: pockets have moved, seams have been doubled and cuffs reinforced because of it.</p>
+                <figure class="article__figure">
+                    <img src="https://images.example.com/story/7.jpg" alt="Workshop photograph 7" width="960" height="640" loading="lazy">
+                    <figcaption>Photograph 7: inside the Northumberland workshop.</figcaption>
+                </figure>
+                <blockquote class="article__quote">
+                    <p>Make it once, make it well, and be ready to mend it.</p>
+                    <cite>Founder's notebook, entry 7</cite>
+                </blockquote>
+            </section>
+            <section class="article__section" id="section-8">
+                <h2 class="article__heading">Chapter 8</h2>
+                <p>We started in 2009 with two sewing machines and a borrowed cutting table. The first jackets took a week each, and we sold them from the back of a van at county shows across the north of England.</p>
+                <p>Today the workshop employs forty-two people. We still cut every jacket by hand, and we still wax the cotton in small batches, because that is the only way to get an even finish that wears in rather than wearing out.</p>
+                <p>Our cloth comes from a mill in Lancashire that has been weaving cotton since 1868. The wool for our linings is collected from post-consumer garments, sorted by colour and re-spun without dyes.</p>
+                <p>We publish the full cost breakdown of every product we make: materials, labour, transport, overheads and margin. We think you should know what you are paying for.</p>
+                <p>When a jacket comes back for repair we log the fault, the fix and the time it took. That record shapes the next pattern: pockets have moved, seams have been doubled and cuffs reinforced because of it.</p>
+                <figure class="article__figure">
+                    <img src="https://images.example.com/story/8.jpg" alt="Workshop photograph 8" width="960" height="640" loading="lazy">
+                    <figcaption>Photograph 8: inside the Northumberland workshop.</figcaption>
+                </figure>
+                <blockquote class="article__quote">
+                    <p>Make it once, make it well, and be ready to mend it.</p>
+                    <cite>Founder's notebook, entry 8</cite>
+                </blockquote>
+            </section>
+        </article>
+    </main>
+    <footer th:replace="~{bench/fragments/footer :: footer}"></footer>
+</body>
+</html>

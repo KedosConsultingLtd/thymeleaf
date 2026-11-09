@@ -64,13 +64,88 @@ The rules (HTML template mode only):
 Browsers render all of these identically except the last one. Compare output with whitespace normalised, not
 byte for byte.
 
+## Static-run coalescing
+
+Enable it by registering `org.thymeleaf.parsefilter.StaticRunCoalescingDialect`, alongside the whitespace dialect
+or on its own:
+
+```java
+@Bean
+public StaticRunCoalescingDialect staticRunCoalescingDialect() {
+    return new StaticRunCoalescingDialect();
+}
+```
+
+**What it does:**
+- At parse time it merges each maximal run of *static* events into one pre-rendered text event, flagged as static
+  markup.
+- `ProcessorTemplateHandler` passes flagged text straight to output, without running text processors or inlining.
+- Rendered output is **byte-identical** to the stock engine. Each render just dispatches, tracks and writes far
+  fewer events.
+
+```mermaid
+flowchart LR
+  subgraph Before["Cached model, stock engine"]
+    A1["&lt;div class=a&gt;"] --> A2["&lt;p&gt;"] --> A3["text"] --> A4["&lt;/p&gt;"] --> A5["&lt;/div&gt;"] --> A6["&lt;p th:text&gt;"]
+  end
+  subgraph After["Cached model, coalesced"]
+    B1["text: &lt;div class=a&gt;&lt;p&gt;text&lt;/p&gt;&lt;/div&gt;"] --> B2["&lt;p th:text&gt;"]
+  end
+```
+
+### What counts as static
+
+| Event | Static when |
+|---|---|
+| Element (open + close, or standalone) | No processor is associated with the tag, and every descendant is static |
+| Text | Not inlineable (no `[[...]]` / `[(...)]`), and the only text processors configured are the standard inlining one |
+| Comment | Not inlineable, contains no `[` (rules out conditional comments), and only standard comment processors are configured |
+| CDATA | Not inlineable, and only the standard inlining CDATA processor is configured |
+| DOCTYPE, XML declaration, processing instruction, unmatched close tag | Never |
+
+### Element events that are always kept
+
+| Case | Why |
+|---|---|
+| Root-level elements of a template or fragment | Fragment inclusion (`th:include`) works on the root elements of the inserted model |
+| Direct children of an element with processors | Processors can act on child elements, e.g. `th:remove="all-but-first"` keeps the first child *element* |
+| Everything inside an element with a model processor | Model processors receive and may inspect the element's whole model |
+| A whitespace-only text right before an element | `th:each` repeats the whitespace text preceding the iterated element between iterations |
+
+**When it switches itself off:** if any pre-processor or post-processor is configured for HTML, coalescing is
+disabled and a warning is logged once. Those processors observe the event stream, which coalescing would change.
+
+### Verification
+
+- **Upstream suites with coalescing forced on.** Both suites were run with coalescing enabled on every test engine,
+  through a new opt-in hook in the testing library (`-Dthymeleaf.testing.additionalDialects=<dialect classes>`):
+  - core: 1,277 tests, all pass;
+  - Spring 6: 532 tests, all pass. The hook reaches 337 of these; the rest don't use the test executor.
+
+  A bogus dialect name makes every hooked test fail, which confirms the hook is applied.
+- **Dedicated tests** (`StaticRunCoalescingParseFilterTest`) check that output is identical with and without
+  coalescing, and that the cached model shrinks. Each case is checked uncached, on first render and on render from
+  the cache. They cover:
+  - iteration whitespace;
+  - all `th:remove` modes;
+  - conditionals, `th:with`, `th:switch`, `th:object`;
+  - text, JavaScript and CSS inlining;
+  - comments, conditional comments, parser-level comments, CDATA;
+  - DOCTYPE and unmatched tags;
+  - `th:insert`/`th:replace`/`th:include` by name, id and parameterised fragment;
+  - a custom model processor;
+  - the post-processor switch-off;
+  - combination with whitespace collapsing.
+
 ## Tests
 
-`tests/thymeleaf-tests-core/src/test/java/org/thymeleaf/parsefilter/WhitespaceCollapsingParseFilterTest.java`
-(19 cases). Each rule is checked on both the cacheable and the non-cacheable path. The tests also cover fragment
-insertion, `th:each`, the TEXT mode exclusion, and output without the dialect. The full core suite passes unchanged.
+| Test class | Cases |
+|---|---|
+| `tests/thymeleaf-tests-core/.../parsefilter/WhitespaceCollapsingParseFilterTest` | 19 |
+| `tests/thymeleaf-tests-core/.../parsefilter/StaticRunCoalescingParseFilterTest` | 14 |
 
-## Next
+The full core suite passes with and without coalescing enabled.
 
-- TODO: static-run coalescing (investigation item 3.1) as a second parse filter running after whitespace
-  collapsing, merging balanced static subtrees into single text events.
+## Benchmarks
+
+See `benchmarks/thymeleaf-benchmarks/README.md`.

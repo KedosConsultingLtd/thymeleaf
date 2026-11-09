@@ -222,6 +222,32 @@ public final class TestExecutor {
 
     
     
+    /*
+     * Kedos: comma-separated dialect class names (public no-arg constructors) added to every test engine, so the
+     * whole suite can be re-run with an extra dialect enabled, e.g. a parse filter that must not change any output:
+     *   mvn test -Dthymeleaf.testing.additionalDialects=org.thymeleaf.parsefilter.StaticRunCoalescingDialect
+     */
+    public static final String ADDITIONAL_DIALECTS_PROPERTY = "thymeleaf.testing.additionalDialects";
+
+
+    private static Set<IDialect> withAdditionalDialects(final List<? extends IDialect> dialects) {
+        final Set<IDialect> result = new HashSet<IDialect>(dialects);
+        final String additional = System.getProperty(ADDITIONAL_DIALECTS_PROPERTY);
+        if (additional == null || additional.trim().isEmpty()) {
+            return result;
+        }
+        for (final String className : additional.split(",")) {
+            try {
+                result.add((IDialect) Class.forName(className.trim()).getConstructor().newInstance());
+            } catch (final Exception e) {
+                throw new TestEngineExecutionException(
+                        "Cannot instantiate dialect \"" + className.trim() + "\" from system property " + ADDITIONAL_DIALECTS_PROPERTY, e);
+            }
+        }
+        return result;
+    }
+
+
     private void execute(final ITestable testable, final TestExecutionContext context) {
 
         Validate.notNull(testable, "Testable cannot be null");
@@ -235,7 +261,7 @@ public final class TestExecutor {
         final TemplateEngine templateEngine = new TemplateEngine();
         templateEngine.setTemplateResolver(templateResolver);
         templateEngine.setMessageResolver(messageResolver);
-        templateEngine.setDialects(new HashSet<IDialect>(this.dialects));
+        templateEngine.setDialects(withAdditionalDialects(this.dialects));
         templateEngine.setCacheManager(cacheManager);
         
         context.setTemplateEngine(templateEngine);
