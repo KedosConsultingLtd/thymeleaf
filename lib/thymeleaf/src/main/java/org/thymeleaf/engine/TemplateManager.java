@@ -41,6 +41,7 @@ import org.thymeleaf.context.IContext;
 import org.thymeleaf.context.IEngineContext;
 import org.thymeleaf.context.ITemplateContext;
 import org.thymeleaf.exceptions.TemplateInputException;
+import org.thymeleaf.parsefilter.ParseFilters;
 import org.thymeleaf.exceptions.TemplateProcessingException;
 import org.thymeleaf.postprocessor.IPostProcessor;
 import org.thymeleaf.preprocessor.IPreProcessor;
@@ -85,6 +86,8 @@ public final class TemplateManager {
 
     private final ICache<TemplateCacheKey,TemplateModel> templateCache; // might be null! (= no cache)
 
+    private final ParseFilters parseFilters;
+
 
 
 
@@ -120,6 +123,8 @@ public final class TemplateManager {
         this.javascriptParser = new JavaScriptTemplateParser(DEFAULT_PARSER_POOL_SIZE, DEFAULT_PARSER_BLOCK_SIZE, standardDialectPresent);
         this.cssParser = new CSSTemplateParser(DEFAULT_PARSER_POOL_SIZE, DEFAULT_PARSER_BLOCK_SIZE, standardDialectPresent);
         this.rawParser = new RawTemplateParser(DEFAULT_PARSER_POOL_SIZE, DEFAULT_PARSER_BLOCK_SIZE);
+
+        this.parseFilters = ParseFilters.forConfiguration(this.configuration);
 
     }
     
@@ -302,7 +307,8 @@ public final class TemplateManager {
         parser.parseStandalone(
                 this.configuration,
                 ownerTemplate, template, cleanTemplateSelectors, templateData.getTemplateResource(),
-                templateData.getTemplateMode(), templateResolution.getUseDecoupledLogic(), builderHandler);
+                templateData.getTemplateMode(), templateResolution.getUseDecoupledLogic(),
+                this.parseFilters.wrap(templateData.getTemplateMode(), builderHandler));
 
         final TemplateModel templateModel = builderHandler.getModel();
 
@@ -449,7 +455,9 @@ public final class TemplateManager {
          */
         final ITemplateParser parser = getParserForTemplateMode(templateData.getTemplateMode());
         // NO RESOURCE is sent to the parser, in this case. We simply pass the String template
-        parser.parseString(this.configuration, ownerTemplate, template, lineOffset, colOffset, definitiveTemplateMode, builderHandler);
+        parser.parseString(
+                this.configuration, ownerTemplate, template, lineOffset, colOffset, definitiveTemplateMode,
+                this.parseFilters.wrap(definitiveTemplateMode, builderHandler));
 
         final TemplateModel parsedTemplate = builderHandler.getModel();
 
@@ -649,7 +657,8 @@ public final class TemplateManager {
             parser.parseStandalone(
                     this.configuration,
                     null, template, templateSelectors, templateData.getTemplateResource(),
-                    engineContext.getTemplateMode(), templateResolution.getUseDecoupledLogic(), builderHandler);
+                    engineContext.getTemplateMode(), templateResolution.getUseDecoupledLogic(),
+                    this.parseFilters.wrap(engineContext.getTemplateMode(), builderHandler));
 
             // Obtain the TemplateModel
             final TemplateModel templateModel = builderHandler.getModel();
@@ -666,7 +675,8 @@ public final class TemplateManager {
             parser.parseStandalone(
                     this.configuration,
                     null, template, templateSelectors, templateData.getTemplateResource(),
-                    engineContext.getTemplateMode(), templateResolution.getUseDecoupledLogic(),  processingHandlerChain);
+                    engineContext.getTemplateMode(), templateResolution.getUseDecoupledLogic(),
+                    this.parseFilters.wrap(engineContext.getTemplateMode(), processingHandlerChain));
 
         }
 
@@ -797,7 +807,8 @@ public final class TemplateManager {
         parser.parseStandalone(
                 this.configuration,
                 null, template, templateSelectors, templateData.getTemplateResource(),
-                engineContext.getTemplateMode(), templateResolution.getUseDecoupledLogic(), builderHandler);
+                engineContext.getTemplateMode(), templateResolution.getUseDecoupledLogic(),
+                this.parseFilters.wrap(engineContext.getTemplateMode(), builderHandler));
         final TemplateModel templateModel = builderHandler.getModel();
 
 
