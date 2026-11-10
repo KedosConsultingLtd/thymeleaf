@@ -75,6 +75,7 @@ public class SpringTemplateEngine
     private MessageSource templateEngineMessageSource = null;
     private Collection<Class<?>> allowedClassOverridesForViews = Collections.emptyList();
     private boolean messageResolverSetByUser = false;
+    private boolean failOnMissingMessage = true;
 
 
 
@@ -136,6 +137,25 @@ public class SpringTemplateEngine
     @Override
     public void setTemplateEngineMessageSource(final MessageSource templateEngineMessageSource) {
         this.templateEngineMessageSource = templateEngineMessageSource;
+    }
+
+
+    /**
+     * <p>
+     *   Sets {@link SpringMessageResolver#setFailOnMissingMessage(boolean)} on the {@link SpringMessageResolver} this
+     *   engine creates automatically. Default {@code true}: a key the {@link MessageSource} cannot find makes
+     *   {@code #{...}} and {@code #messages.msg(...)} fail. {@code false} renders {@code ??key_locale??} instead, as
+     *   in 3.1.4 and earlier. {@code #messages.msgOrNull(...)} returns {@code null} for missing keys either way.
+     * </p>
+     * <p>
+     *   Has no effect if a message resolver has been set explicitly; configure that resolver instead. Must be called
+     *   before the engine is initialized (i.e. before the first template is processed).
+     * </p>
+     *
+     * @param failOnMissingMessage whether missing messages fail template processing.
+     */
+    public void setFailOnMissingMessage(final boolean failOnMissingMessage) {
+        this.failOnMissingMessage = failOnMissingMessage;
     }
 
 
@@ -401,6 +421,7 @@ public class SpringTemplateEngine
             if (messageSource != null) {
                 final SpringMessageResolver springMessageResolver = new SpringMessageResolver();
                 springMessageResolver.setMessageSource(messageSource);
+                springMessageResolver.setFailOnMissingMessage(this.failOnMissingMessage);
                 messageResolver = springMessageResolver;
             } else {
                 messageResolver = new StandardMessageResolver();

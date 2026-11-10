@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.thymeleaf.IEngineConfiguration;
+import org.thymeleaf.exceptions.MessageNotFoundException;
 import org.thymeleaf.exceptions.TemplateProcessingException;
 import org.thymeleaf.expression.ExpressionObjects;
 import org.thymeleaf.expression.IExpressionObjects;
@@ -128,26 +129,40 @@ public abstract class AbstractEngineContext implements IEngineContext {
 
         final Set<IMessageResolver> messageResolvers = this.configuration.getMessageResolvers();
 
-        // Try to resolve the message
+        // Try to resolve the message. A resolver may signal "not found, and fail rather than render an absent
+        // representation" with MessageNotFoundException: that still counts as not found here, so the remaining
+        // resolvers are tried and null-returning lookups (#messages.msgOrNull) keep returning null.
+        MessageNotFoundException messageNotFound = null;
         for (final IMessageResolver messageResolver : messageResolvers) {
-            final String resolvedMessage =
-                    messageResolver.resolveMessage(this, origin, key, messageParameters);
+            final String resolvedMessage;
+            try {
+                resolvedMessage = messageResolver.resolveMessage(this, origin, key, messageParameters);
+            } catch (final MessageNotFoundException e) {
+                if (messageNotFound == null) {
+                    messageNotFound = e;
+                }
+                continue;
+            }
             if (resolvedMessage != null) {
                 return resolvedMessage;
             }
         }
 
-        // Message unresolved: try to create an "absent message representation" (if specified to do so)
-        if (useAbsentMessageRepresentation) {
+        if (!useAbsentMessageRepresentation) {
+            return null;
+        }
 
-            for (final IMessageResolver messageResolver : messageResolvers) {
-                final String absentMessageRepresentation =
-                        messageResolver.createAbsentMessageRepresentation(this, origin, key, messageParameters);
-                if (absentMessageRepresentation != null) {
-                    return absentMessageRepresentation;
-                }
+        if (messageNotFound != null) {
+            throw messageNotFound;
+        }
+
+        // Message unresolved: try to create an "absent message representation" (as specified)
+        for (final IMessageResolver messageResolver : messageResolvers) {
+            final String absentMessageRepresentation =
+                    messageResolver.createAbsentMessageRepresentation(this, origin, key, messageParameters);
+            if (absentMessageRepresentation != null) {
+                return absentMessageRepresentation;
             }
-
         }
 
         return null;

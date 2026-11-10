@@ -27,7 +27,7 @@ import org.springframework.context.NoSuchMessageException;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.ITemplateContext;
 import org.thymeleaf.exceptions.ConfigurationException;
-import org.thymeleaf.exceptions.TemplateProcessingException;
+import org.thymeleaf.exceptions.MessageNotFoundException;
 import org.thymeleaf.messageresolver.AbstractMessageResolver;
 import org.thymeleaf.messageresolver.IMessageResolver;
 import org.thymeleaf.messageresolver.StandardMessageResolver;
@@ -63,6 +63,7 @@ public class SpringMessageResolver
 
     private final StandardMessageResolver standardMessageResolver;
     private MessageSource messageSource;
+    private boolean failOnMissingMessage = true;
 
 
     public SpringMessageResolver() {
@@ -117,6 +118,28 @@ public class SpringMessageResolver
     }
 
 
+    /**
+     * <p>
+     *   Whether a key the {@link MessageSource} cannot find (it throws {@link NoSuchMessageException}) makes
+     *   {@code #{...}} and {@code #messages.msg(...)} fail with a {@link MessageNotFoundException}
+     *   ({@code true}, the default, as in 3.1.6) or render the absent message representation
+     *   ({@code ??key_locale??}, as in 3.1.4 and earlier).
+     * </p>
+     * <p>
+     *   Either way, {@code #messages.msgOrNull(...)} returns {@code null} for missing keys.
+     * </p>
+     *
+     * @param failOnMissingMessage whether missing messages fail template processing.
+     */
+    public final void setFailOnMissingMessage(final boolean failOnMissingMessage) {
+        this.failOnMissingMessage = failOnMissingMessage;
+    }
+
+    public final boolean isFailOnMissingMessage() {
+        return this.failOnMissingMessage;
+    }
+
+
 
 
 
@@ -164,12 +187,14 @@ public class SpringMessageResolver
 
 
         /*
-         * NOT FOUND. If the MessageSource threw NoSuchMessageException in step 1, re-throw it so that
+         * NOT FOUND. If the MessageSource threw NoSuchMessageException in step 1, signal it so that
          * applications configured with useCodeAsDefaultMessage=false can fail-fast instead of silently
-         * producing an absent message representation (??key??).
+         * producing an absent message representation (??key??). MessageNotFoundException is treated by the
+         * engine as "not found" first (other resolvers are tried, #messages.msgOrNull returns null), and only
+         * fails processing where an absent message representation would otherwise be rendered.
          */
-        if (noSuchMessageException != null) {
-            throw new TemplateProcessingException(
+        if (noSuchMessageException != null && this.failOnMissingMessage) {
+            throw new MessageNotFoundException(
                     "Could not resolve message with key \"" + key + "\" for locale \"" + context.getLocale() + "\"",
                     noSuchMessageException);
         }
