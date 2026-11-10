@@ -11,7 +11,7 @@
 
 - **Version:** `<upstream>.KEDOS-<n>`, e.g. `3.1.6.KEDOS-1`. Upstream never uses this, so it can't clash with
   Maven Central.
-- **Registry:** GitHub Packages for this repository, `https://maven.pkg.github.com/KedosConsultingLtd/thymeleaf-spring`.
+- **Registry:** GitHub Packages for this repository, `https://maven.pkg.github.com/KedosConsultingLtd/thymeleaf`.
 
 The group id stays `org.thymeleaf`, so an application only changes the version (for example Spring Boot's
 `thymeleaf.version` property) and doesn't need dependency exclusions.
@@ -63,7 +63,7 @@ Published versions are immutable. To fix something, release `KEDOS-2`.
    <repositories>
      <repository>
        <id>kedos-thymeleaf</id>
-       <url>https://maven.pkg.github.com/KedosConsultingLtd/thymeleaf-spring</url>
+       <url>https://maven.pkg.github.com/KedosConsultingLtd/thymeleaf</url>
        <releases><enabled>true</enabled></releases>
        <snapshots><enabled>false</enabled></snapshots>
      </repository>
