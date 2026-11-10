@@ -21,6 +21,7 @@ This repository is Kedos Consulting's fork of [thymeleaf/thymeleaf](https://gith
 | JMH rendering benchmarks (`benchmarks/thymeleaf-benchmarks`, outside the build reactor) | – | [README](../../benchmarks/thymeleaf-benchmarks/README.md) |
 | Testing library: `-Dthymeleaf.testing.additionalDialects` runs the whole suite with extra dialects | test only | [parse-filters.md](parse-filters.md) |
 | **Fix for an upstream 3.1.6 regression:** `#messages.msgOrNull(...)` returns `null` again for keys the Spring `MessageSource` doesn't have (3.1.6 throws). Later message resolvers are tried again too. `#{...}` / `msg()` still fail fast by default (3.1.6 behaviour); `SpringTemplateEngine.setFailOnMissingMessage(false)` restores 3.1.4's `??key_locale??` | fix on; switch defaults to fail fast | [below](#missing-messages) |
+| **Fix for an upstream 3.1.6 regression:** restricted-mode checks (e.g. fragment parameters) no longer reject text inside string literals such as `'New promotion'` (SpEL / Spring dialects) | on | [below](#restricted-mode-checks-and-string-literals) |
 
 All changes were security-audited (see [security-audit.md](security-audit.md)). The upstream test suites pass with and
 without coalescing forced on.
@@ -60,6 +61,32 @@ static BeanPostProcessor thymeleafFailOnMissingMessage() {
     };
 }
 ```
+
+## Restricted-mode checks and string literals
+
+**The problem.** In restricted mode (fragment parameters, event-handler attributes, …), Thymeleaf rejects
+expressions that instantiate objects, reference types or beans, or read request parameters. Upstream 3.1.6 started
+lower-casing the expression before checking (SpEL keywords are case-insensitive). So **text inside string
+literals** now trips the check, and a fragment parameter like the following fails with "Instantiation of new
+objects … is forbidden":
+
+```html
+<div th:replace="~{fragments :: editHeader(${ {{'Home','/admin'}, {'New promotion', null}} })}"></div>
+```
+
+The same happens for literals such as `'Search params'` or `'a@b.com'`.
+
+**The fix in this fork.** The check ignores the contents of SpEL string literals. Literal boundaries are found
+exactly as SpEL's tokenizer finds them (`'…'` / `"…"`, doubled quotes as escapes, no other escapes), on the
+original expression text. Instantiation and type references outside literals, in any letter case, are still
+rejected.
+
+Bean-reference detection now follows SpEL's own bean-reference syntax exactly.
+
+**Verification.**
+- `SpringExternalAccessLiteralTest` includes a differential test: 200,000 generated expressions, each parsed with
+  SpEL. Any that SpEL parses into a constructor, type or bean reference must be flagged.
+- The OGNL (core) check is unchanged.
 
 ## Merging a new upstream release
 
