@@ -67,6 +67,7 @@ public class SpringExternalAccessLiteralTest {
                 "{'a', new java.util.Date()}", "'x'.concat(T(java.lang.Math).toString())",
                 "@'my bean'.x", "@\"myBean\"", "'a' + @'b'", // quoted bean references (missed upstream)
                 "@ myBean.x", "@\tmyBean", "&myFactory", "& 'myFactory'", "a && &myFactory", "@\u00e9t\u00e9", // whitespace, factory, non-ASCII
+                "new.java.lang.ProcessBuilder('id')", "new\u0000java.lang.ProcessBuilder('id')", "NEW\u0001java.util.Date()",
         };
         for (final String expression : unsafe) {
             Assertions.assertTrue(SpringStandardExpressionUtils.containsExternalAccess(expression), expression);
@@ -96,6 +97,7 @@ public class SpringExternalAccessLiteralTest {
                 "java.util.ArrayList()", "java.lang.Math", ".abs(1)", "@", "bean", "param", "PARAM", ".x", "['k']",
                 " + ", " ", "\t", "\u0001", "\u0085", "\\", "x", "{", "}", ",", "(", "promotion",
                 "&", "&&", " and ", "@ ", "\u00e9", "$", "_b",
+                "new", "\u0000", ".", "\u007f",
         };
         final SpelExpressionParser parser = new SpelExpressionParser();
         final Random random = new Random(1117L);

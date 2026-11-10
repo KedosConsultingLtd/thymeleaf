@@ -50,7 +50,7 @@ public final class SpringStandardExpressionUtils {
          * normalization, which deletes control characters and could otherwise change where a literal ends.
          */
 
-        final String exp = ExpressionUtils.normalize(blankStringLiterals(expression), true);
+        final String exp = ExpressionUtils.normalize(separateControlCharacters(blankStringLiterals(expression)), true);
 
         if (containsBeanReference(exp)) {
             return true;
@@ -70,7 +70,7 @@ public final class SpringStandardExpressionUtils {
             // identifier before it.
             if (ni < NEW_LEN
                     && c == NEW_ARRAY[ni]
-                    && (ni > 0 || ((n + 1 < explen) && Character.isWhitespace(exp.charAt(n + 1))))) {
+                    && (ni > 0 || ((n + 1 < explen) && isNewKeywordFollower(exp.charAt(n + 1))))) {
                 ni++;
                 if (ni == NEW_LEN && (n == 0 || !isSafeIdentifierChar(exp.charAt(n - 1)))) {
                     return true; // we found an object instantiation
@@ -190,6 +190,39 @@ public final class SpringStandardExpressionUtils {
             }
         }
         return false;
+    }
+
+
+    /*
+     * Kedos: characters SpEL accepts right after the "new" keyword before the type name: whitespace, and '.'
+     * (eatPossiblyQualifiedId accepts a leading dot, so "new.java.util.Date()" is a constructor call).
+     */
+    private static boolean isNewKeywordFollower(final char c) {
+        return Character.isWhitespace(c) || c == '.';
+    }
+
+
+    /*
+     * Kedos: ExpressionUtils.normalize deletes control characters, which can join tokens that SpEL keeps apart
+     * (SpEL's tokenizer skips '\u0000', so "new\u0000java.util.Date()" is a constructor call, but normalizes to
+     * "newjava..."). Outside string literals (already blanked), control characters become spaces before
+     * normalization, so they still separate tokens for the scan.
+     */
+    static String separateControlCharacters(final String expression) {
+        if (expression == null) {
+            return null;
+        }
+        char[] chars = null;
+        for (int i = 0; i < expression.length(); i++) {
+            final char c = expression.charAt(i);
+            if ((c < '\u0020' || (c >= '\u007F' && c <= '\u009F')) && !Character.isWhitespace(c)) {
+                if (chars == null) {
+                    chars = expression.toCharArray();
+                }
+                chars[i] = ' ';
+            }
+        }
+        return (chars == null ? expression : new String(chars));
     }
 
 
