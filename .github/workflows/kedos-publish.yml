@@ -1,6 +1,9 @@
 # Publishes a Kedos build of thymeleaf + thymeleaf-spring6 to GitHub Packages.
 #
-# Trigger: push a tag that is the version itself, e.g. 3.1.6.KEDOS-1.
+# Triggers (either):
+#   - push a tag that is the version itself, e.g. 3.1.6.KEDOS-1; or
+#   - run the workflow manually (Actions -> kedos-publish -> Run workflow) with the version. It publishes the
+#     commit it runs on and, once publishing has succeeded, creates and pushes the version tag itself.
 # The committed POMs keep the upstream version (3.1.6.RELEASE) so upstream merges stay clean; the Kedos version is
 # applied at build time. Upstream's own release path (central-publishing-maven-plugin, GPG signing) is never used:
 # artifacts are installed locally and then pushed with deploy:deploy-file to GitHub Packages only.
@@ -13,13 +16,19 @@ on:
   push:
     tags:
       - '*.KEDOS-*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Kedos version to publish, e.g. 3.1.6.KEDOS-1 (the tag is created after publishing)'
+        required: true
+        type: string
 
 permissions:
-  contents: read
+  contents: write   # only used to push the version tag after a manual run
   packages: write
 
 concurrency:
-  group: kedos-publish-${{ github.ref }}
+  group: kedos-publish
   cancel-in-progress: false
 
 jobs:
@@ -40,12 +49,23 @@ jobs:
           server-username: GITHUB_ACTOR
           server-password: GITHUB_TOKEN
 
-      - name: Resolve version from tag
+      - name: Resolve version
         id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          VERSION="$GITHUB_REF_NAME"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            VERSION="$INPUT_VERSION"
+            # Published versions are immutable: refuse to reuse a version that already has a tag
+            if [ -n "$(git ls-remote --tags origin "refs/tags/$VERSION")" ]; then
+              echo "Tag $VERSION already exists: choose the next KEDOS-n version" >&2
+              exit 1
+            fi
+          else
+            VERSION="$GITHUB_REF_NAME"
+          fi
           if ! echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.KEDOS-[0-9]+$'; then
-            echo "Tag must be a Kedos version such as 3.1.6.KEDOS-1 (got $GITHUB_REF_NAME)" >&2
+            echo "Version must look like 3.1.6.KEDOS-1 (got $VERSION)" >&2
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -85,3 +105,14 @@ jobs:
               -Dsources="$DIR/target/$MODULE-$VERSION-sources.jar" \
               -Djavadoc="$DIR/target/$MODULE-$VERSION-javadoc.jar"
           done
+
+      - name: Tag the published commit (manual runs)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Tags pushed with GITHUB_TOKEN do not trigger workflows, so this cannot start a second publish
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$VERSION" "$GITHUB_SHA" -m "Kedos build $VERSION"
+          git push origin "refs/tags/$VERSION"
