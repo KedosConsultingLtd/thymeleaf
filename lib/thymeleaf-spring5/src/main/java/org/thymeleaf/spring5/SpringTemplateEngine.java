@@ -75,7 +75,7 @@ public class SpringTemplateEngine
     private MessageSource templateEngineMessageSource = null;
     private Collection<Class<?>> allowedClassOverridesForViews = Collections.emptyList();
     private boolean messageResolverSetByUser = false;
-    private boolean failOnMissingMessage = true;
+    private boolean failOnMissingMessage = false;
 
 
 
@@ -140,19 +140,44 @@ public class SpringTemplateEngine
     }
 
 
+
+
     /**
      * <p>
-     *   Sets {@link SpringMessageResolver#setFailOnMissingMessage(boolean)} on the {@link SpringMessageResolver} this
-     *   engine creates automatically. Default {@code true}: a key the {@link MessageSource} cannot find makes
-     *   {@code #{...}} and {@code #messages.msg(...)} fail. {@code false} renders {@code ??key_locale??} instead, as
-     *   in 3.1.4 and earlier. {@code #messages.msgOrNull(...)} returns {@code null} for missing keys either way.
-     * </p>
-     * <p>
-     *   Has no effect if a message resolver has been set explicitly; configure that resolver instead. Must be called
-     *   before the engine is initialized (i.e. before the first template is processed).
+     *   Returns whether the message resolver created by default by this template engine will raise an exception
+     *   when a message cannot be resolved, instead of returning an <em>absent message representation</em>
+     *   (like {@code ??key_locale??}). Default is {@code false}.
      * </p>
      *
-     * @param failOnMissingMessage whether missing messages fail template processing.
+     * @return whether missing messages raise an exception.
+     * @since 3.1.7
+     */
+    public boolean isFailOnMissingMessage() {
+        return this.failOnMissingMessage;
+    }
+
+
+    /**
+     * <p>
+     *   Sets whether the message resolver created by default by this template engine will raise an exception
+     *   when a message cannot be resolved, instead of returning an <em>absent message representation</em>
+     *   (like {@code ??key_locale??}). Default is {@code false}.
+     * </p>
+     * <p>
+     *   This applies to message expressions ({@code #{...}}) and to the {@code #messages.msg(...)} family of
+     *   methods, but not to the {@code #messages.msgOrNull(...)} family, which will still return {@code null}
+     *   for messages that cannot be resolved.
+     * </p>
+     * <p>
+     *   Note this only applies to the message resolver this template engine creates when no message resolvers
+     *   have been explicitly set. Message resolvers set by means of {@link #setMessageResolver(IMessageResolver)},
+     *   {@link #setMessageResolvers(Set)} or {@link #addMessageResolver(IMessageResolver)} should be configured
+     *   directly (see {@link SpringMessageResolver#setFailOnMissingMessage(boolean)} and
+     *   {@link StandardMessageResolver#setFailOnMissingMessage(boolean)}).
+     * </p>
+     *
+     * @param failOnMissingMessage whether missing messages should raise an exception.
+     * @since 3.1.7
      */
     public void setFailOnMissingMessage(final boolean failOnMissingMessage) {
         this.failOnMissingMessage = failOnMissingMessage;
@@ -424,7 +449,9 @@ public class SpringTemplateEngine
                 springMessageResolver.setFailOnMissingMessage(this.failOnMissingMessage);
                 messageResolver = springMessageResolver;
             } else {
-                messageResolver = new StandardMessageResolver();
+                final StandardMessageResolver standardMessageResolver = new StandardMessageResolver();
+                standardMessageResolver.setFailOnMissingMessage(this.failOnMissingMessage);
+                messageResolver = standardMessageResolver;
             }
 
             super.setMessageResolver(messageResolver);

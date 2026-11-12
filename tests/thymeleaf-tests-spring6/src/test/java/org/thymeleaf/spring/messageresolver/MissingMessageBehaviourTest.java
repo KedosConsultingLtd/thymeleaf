@@ -28,7 +28,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.context.support.StaticMessageSource;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.context.ITemplateContext;
-import org.thymeleaf.exceptions.MessageNotFoundException;
 import org.thymeleaf.exceptions.TemplateProcessingException;
 import org.thymeleaf.messageresolver.AbstractMessageResolver;
 import org.thymeleaf.messageresolver.IMessageResolver;
@@ -42,8 +41,8 @@ import org.thymeleaf.templateresolver.StringTemplateResolver;
  * (useCodeAsDefaultMessage=false, Spring's default).
  * <ul>
  *   <li>{@code #messages.msgOrNull(...)} must return null, whatever the configuration (3.1.6 regression: it threw).</li>
- *   <li>{@code #{...}} and {@code #messages.msg(...)} fail by default (3.1.6 behaviour), or render
- *       {@code ??key_locale??} with failOnMissingMessage=false (3.1.4 behaviour).</li>
+ *   <li>{@code #{...}} and {@code #messages.msg(...)} render {@code ??key_locale??} by default (3.1.4 and 3.1.7
+ *       behaviour), and fail only with failOnMissingMessage=true (opt-in since 3.1.7).</li>
  *   <li>A resolver signalling "not found" does not stop later resolvers from being tried.</li>
  * </ul>
  */
@@ -70,7 +69,16 @@ public class MissingMessageBehaviourTest {
     }
 
     @Test
-    public void missingKeyFailsByDefault() {
+    public void missingKeyRendersAbsentRepresentationByDefault() {
+        final SpringTemplateEngine engine = new SpringTemplateEngine();
+        engine.setTemplateResolver(textResolver());
+        engine.setTemplateEngineMessageSource(messageSource());
+        Assertions.assertEquals("??missing.key_en??|??missing.key_en??|fallback",
+                engine.process("[[#{missing.key}]]|[[${#messages.msg('missing.key')}]]|[[${#messages.msgOrNull('missing.key') ?: 'fallback'}]]", context()));
+    }
+
+    @Test
+    public void missingKeyFailsWhenOptedIn() {
         final SpringTemplateEngine engine = engine(true);
         assertMessageNotFound(() -> engine.process("[[#{missing.key}]]", context()));
         assertMessageNotFound(() -> engine.process("[[${#messages.msg('missing.key')}]]", context()));
@@ -86,6 +94,7 @@ public class MissingMessageBehaviourTest {
     public void laterResolversAreStillTriedAfterSpringResolverReportsMissingKey() {
         final SpringMessageResolver spring = new SpringMessageResolver();
         spring.setMessageSource(messageSource());
+        spring.setFailOnMissingMessage(true);
         spring.setOrder(1);
         final FixedMessageResolver fallbackResolver = new FixedMessageResolver("only.in.second", "From second");
         fallbackResolver.setOrder(2);
@@ -128,12 +137,7 @@ public class MissingMessageBehaviourTest {
     }
 
     private static void assertMessageNotFound(final org.junit.jupiter.api.function.Executable executable) {
-        final TemplateProcessingException e = Assertions.assertThrows(TemplateProcessingException.class, executable);
-        Throwable cause = e;
-        while (cause != null && !(cause instanceof MessageNotFoundException)) {
-            cause = cause.getCause();
-        }
-        Assertions.assertNotNull(cause, "expected a MessageNotFoundException in the cause chain, got: " + e);
+        Assertions.assertThrows(TemplateProcessingException.class, executable);
     }
 
 

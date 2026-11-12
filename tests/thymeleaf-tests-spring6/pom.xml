@@ -29,7 +29,7 @@
   <parent>
     <groupId>org.thymeleaf.tests</groupId>
     <artifactId>thymeleaf-tests</artifactId>
-    <version>3.1.6.RELEASE</version>
+    <version>3.1.7.RELEASE</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -97,6 +97,39 @@
       <groupId>org.springframework</groupId>
       <artifactId>spring-expression</artifactId>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot</artifactId>
+      <version>${spring-boot3.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-autoconfigure</artifactId>
+      <version>${spring-boot3.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>nz.net.ultraq.thymeleaf</groupId>
+      <artifactId>thymeleaf-layout-dialect</artifactId>
+      <version>${thymeleaf-layout-dialect-boot3.version}</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.thymeleaf</groupId>
+          <artifactId>thymeleaf</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>

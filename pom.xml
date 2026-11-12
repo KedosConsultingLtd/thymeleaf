@@ -29,7 +29,7 @@
   <groupId>org.thymeleaf</groupId>
   <artifactId>thymeleaf-parent</artifactId>
   <packaging>pom</packaging>
-  <version>3.1.6.RELEASE</version>
+  <version>3.1.7.RELEASE</version>
   <name>thymeleaf parent</name>
   <description>Modern server-side Java template engine for both web and standalone environments</description>
   <url>http://www.thymeleaf.org</url>
@@ -143,6 +143,10 @@
     <unbescape.version>1.1.8.RELEASE</unbescape.version>
     <spring-framework5.version>5.3.39</spring-framework5.version>
     <spring-framework6.version>6.2.19</spring-framework6.version>
+    <spring-boot2.version>2.7.18</spring-boot2.version>
+    <spring-boot3.version>3.5.16</spring-boot3.version>
+    <thymeleaf-layout-dialect-boot2.version>3.0.0</thymeleaf-layout-dialect-boot2.version>
+    <thymeleaf-layout-dialect-boot3.version>3.4.0</thymeleaf-layout-dialect-boot3.version>
     <spring-security5.version>5.8.16</spring-security5.version>
     <spring-security6.version>6.5.11</spring-security6.version>
     <spring-webflow2.version>2.5.1.RELEASE</spring-webflow2.version>
@@ -156,6 +160,8 @@
     <hibernate-validator-jakarta.version>9.1.5.Final</hibernate-validator-jakarta.version>
     <hibernate-validator-javax.version>6.2.6.Final</hibernate-validator-javax.version>
     <mockito.version>5.24.0</mockito.version>
+    <tomcat10.version>10.1.61</tomcat10.version>
+    <tomcat9.version>9.0.123</tomcat9.version>
     <slf4j.version>2.0.20</slf4j.version>
     <log4j.version>2.26.1</log4j.version>
     <junit.version>5.14.4</junit.version>

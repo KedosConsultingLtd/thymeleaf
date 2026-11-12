@@ -29,7 +29,7 @@
   <parent>
     <groupId>org.thymeleaf.tests</groupId>
     <artifactId>thymeleaf-tests</artifactId>
-    <version>3.1.6.RELEASE</version>
+    <version>3.1.7.RELEASE</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -61,6 +61,15 @@
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Declared before jakarta.servlet-api so that the Servlet API classes bundled
+         with Tomcat (the version it implements) come first in the test classpath -->
+    <dependency>
+      <groupId>org.apache.tomcat.embed</groupId>
+      <artifactId>tomcat-embed-core</artifactId>
+      <version>${tomcat10.version}</version>
       <scope>test</scope>
     </dependency>
 

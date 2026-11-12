@@ -9,7 +9,7 @@
 | `org.thymeleaf:thymeleaf` | Core engine, with sources and javadoc jars |
 | `org.thymeleaf:thymeleaf-spring6` | Spring 6 integration, with sources and javadoc jars |
 
-- **Version:** `<upstream>.KEDOS-<n>`, e.g. `3.1.6.KEDOS-1`. Upstream never uses this, so it can't clash with
+- **Version:** `<upstream>.KEDOS-<n>`, e.g. `3.1.7.KEDOS-1`. Upstream never uses this, so it can't clash with
   Maven Central.
 - **Registry:** GitHub Packages for this repository, `https://maven.pkg.github.com/KedosConsultingLtd/thymeleaf`.
 
@@ -20,19 +20,19 @@ The group id stays `org.thymeleaf`, so an application only changes the version (
 
 Either:
 
-- **GitHub UI:** Actions → `kedos-publish` → Run workflow, on branch `3.1-kedos`, with version `3.1.6.KEDOS-1`. The
+- **GitHub UI:** Actions → `kedos-publish` → Run workflow, on branch `3.1-kedos`, with version `3.1.7.KEDOS-1`. The
   workflow tags the published commit itself once publishing has succeeded, and refuses a version whose tag already
   exists.
 - **Tag push:**
 
   ```bash
-  git tag -a 3.1.6.KEDOS-1 <commit> -m "Kedos build 3.1.6.KEDOS-1"    # the tag is the version
-  git push origin 3.1.6.KEDOS-1
+  git tag -a 3.1.7.KEDOS-1 <commit> -m "Kedos build 3.1.7.KEDOS-1"    # the tag is the version
+  git push origin 3.1.7.KEDOS-1
   ```
 
 The `kedos-publish` workflow (`.github/workflows/kedos-publish.yml`) then:
 
-1. sets the version from the tag at build time (committed POMs keep `3.1.6.RELEASE`);
+1. sets the version from the tag at build time (committed POMs keep `3.1.7.RELEASE`);
 2. builds and runs the core and Spring 6 test suites;
 3. runs both suites again with static-run coalescing forced on;
 4. pushes the four artifacts with `deploy:deploy-file`.
@@ -64,7 +64,7 @@ Published versions are immutable. To fix something, release `KEDOS-2`.
 
    ```xml
    <properties>
-     <thymeleaf.version>3.1.6.KEDOS-1</thymeleaf.version>  <!-- Boot's BOM applies it to thymeleaf and thymeleaf-spring6 -->
+     <thymeleaf.version>3.1.7.KEDOS-1</thymeleaf.version>  <!-- Boot's BOM applies it to thymeleaf and thymeleaf-spring6 -->
    </properties>
 
    <repositories>
@@ -77,7 +77,7 @@ Published versions are immutable. To fix something, release `KEDOS-2`.
    </repositories>
    ```
 
-3. **Check it resolved.** `mvn dependency:tree | grep thymeleaf` should show `3.1.6.KEDOS-1` for both artifacts.
+3. **Check it resolved.** `mvn dependency:tree | grep thymeleaf` should show `3.1.7.KEDOS-1` for both artifacts.
 
 ## Turning the optimisations on
 

@@ -27,7 +27,7 @@ import org.springframework.context.NoSuchMessageException;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.ITemplateContext;
 import org.thymeleaf.exceptions.ConfigurationException;
-import org.thymeleaf.exceptions.MessageNotFoundException;
+import org.thymeleaf.exceptions.TemplateProcessingException;
 import org.thymeleaf.messageresolver.AbstractMessageResolver;
 import org.thymeleaf.messageresolver.IMessageResolver;
 import org.thymeleaf.messageresolver.StandardMessageResolver;
@@ -63,7 +63,7 @@ public class SpringMessageResolver
 
     private final StandardMessageResolver standardMessageResolver;
     private MessageSource messageSource;
-    private boolean failOnMissingMessage = true;
+    private boolean failOnMissingMessage = false;
 
 
     public SpringMessageResolver() {
@@ -120,23 +120,36 @@ public class SpringMessageResolver
 
     /**
      * <p>
-     *   Whether a key the {@link MessageSource} cannot find (it throws {@link NoSuchMessageException}) makes
-     *   {@code #{...}} and {@code #messages.msg(...)} fail with a {@link MessageNotFoundException}
-     *   ({@code true}, the default, as in 3.1.6) or render the absent message representation
-     *   ({@code ??key_locale??}, as in 3.1.4 and earlier).
-     * </p>
-     * <p>
-     *   Either way, {@code #messages.msgOrNull(...)} returns {@code null} for missing keys.
+     *   Returns whether an exception will be raised when a message cannot be resolved and an
+     *   <em>absent message representation</em> (like {@code ??key_locale??}) would be returned instead.
+     *   Default is {@code false}.
      * </p>
      *
-     * @param failOnMissingMessage whether missing messages fail template processing.
+     * @return whether missing messages raise an exception.
+     * @since 3.1.7
+     */
+    public final boolean isFailOnMissingMessage() {
+        return this.failOnMissingMessage;
+    }
+
+
+    /**
+     * <p>
+     *   Sets whether an exception will be raised when a message cannot be resolved and an
+     *   <em>absent message representation</em> (like {@code ??key_locale??}) would be returned instead.
+     *   Default is {@code false}.
+     * </p>
+     * <p>
+     *   This applies to message expressions ({@code #{...}}) and to the {@code #messages.msg(...)} family of
+     *   methods, but not to the {@code #messages.msgOrNull(...)} family, which will still return {@code null}
+     *   for messages that cannot be resolved.
+     * </p>
+     *
+     * @param failOnMissingMessage whether missing messages should raise an exception.
+     * @since 3.1.7
      */
     public final void setFailOnMissingMessage(final boolean failOnMissingMessage) {
         this.failOnMissingMessage = failOnMissingMessage;
-    }
-
-    public final boolean isFailOnMissingMessage() {
-        return this.failOnMissingMessage;
     }
 
 
@@ -152,7 +165,6 @@ public class SpringMessageResolver
         /*
          * FIRST STEP: Look for the message using template-based resolution
          */
-        NoSuchMessageException noSuchMessageException = null;
         if (context != null) {
 
             checkMessageSourceInitialized();
@@ -167,7 +179,6 @@ public class SpringMessageResolver
             try {
                 return this.messageSource.getMessage(key, messageParameters, context.getLocale());
             } catch (NoSuchMessageException e) {
-                noSuchMessageException = e;
                 // Try other methods
             }
 
@@ -187,18 +198,8 @@ public class SpringMessageResolver
 
 
         /*
-         * NOT FOUND. If the MessageSource threw NoSuchMessageException in step 1, signal it so that
-         * applications configured with useCodeAsDefaultMessage=false can fail-fast instead of silently
-         * producing an absent message representation (??key??). MessageNotFoundException is treated by the
-         * engine as "not found" first (other resolvers are tried, #messages.msgOrNull returns null), and only
-         * fails processing where an absent message representation would otherwise be rendered.
+         * NOT FOUND, return null
          */
-        if (noSuchMessageException != null && this.failOnMissingMessage) {
-            throw new MessageNotFoundException(
-                    "Could not resolve message with key \"" + key + "\" for locale \"" + context.getLocale() + "\"",
-                    noSuchMessageException);
-        }
-
         return null;
 
     }
@@ -208,6 +209,10 @@ public class SpringMessageResolver
 
     public String createAbsentMessageRepresentation(
             final ITemplateContext context, final Class<?> origin, final String key, final Object[] messageParameters) {
+        if (this.failOnMissingMessage) {
+            throw new TemplateProcessingException(
+                    "Could not resolve message with key \"" + key + "\" for locale \"" + context.getLocale() + "\"");
+        }
         return this.standardMessageResolver.createAbsentMessageRepresentation(context, origin, key, messageParameters);
     }
 

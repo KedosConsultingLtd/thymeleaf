@@ -42,17 +42,12 @@ public final class SpringStandardExpressionUtils {
         /*
          * Checks whether the expression contains instantiation of objects ("new SomeClass") or makes use of
          * static methods ("T(SomeClass)") as both are forbidden in certain contexts in restricted mode.
-         *
-         * Kedos: the contents of SpEL string literals are blanked out before scanning. Literal text cannot execute,
-         * and since 3.1.6 lower-cases the expression for matching (SpEL keywords are case-insensitive), literals
-         * such as 'New promotion', 'Search params' or 'a@b.com' would otherwise be reported. Literal boundaries
-         * are found on the ORIGINAL expression with exactly SpEL's own rules (see blankStringLiterals) before
-         * normalization, which deletes control characters and could otherwise change where a literal ends.
          */
 
-        final String exp = ExpressionUtils.normalize(separateControlCharacters(blankStringLiterals(expression)), true);
+        // NUL is a token separator for SpEL (like whitespace), so it is not removed by normalization
+        final String exp = ExpressionUtils.normalize(expression, true, true);
 
-        if (containsBeanReference(exp)) {
+        if (containsBeanReferenceSymbol(exp)) {
             return true;
         }
 
@@ -70,7 +65,7 @@ public final class SpringStandardExpressionUtils {
             // identifier before it.
             if (ni < NEW_LEN
                     && c == NEW_ARRAY[ni]
-                    && (ni > 0 || ((n + 1 < explen) && isNewKeywordFollower(exp.charAt(n + 1))))) {
+                    && (ni > 0 || ((n + 1 < explen) && (Character.isWhitespace(exp.charAt(n + 1)) || exp.charAt(n + 1) == '.')))) {
                 ni++;
                 if (ni == NEW_LEN && (n == 0 || !isSafeIdentifierChar(exp.charAt(n - 1)))) {
                     return true; // we found an object instantiation
@@ -91,7 +86,7 @@ public final class SpringStandardExpressionUtils {
             // identifier.
             if (pi < PARAM_LEN
                     && c == PARAM_ARRAY[pi]
-                    && (pi > 0 || ((n + 1 < explen) && !isSafeIdentifierChar(exp.charAt(n + 1))))) {
+                    && (pi > 0 || n + 1 == explen || !isSafeIdentifierChar(exp.charAt(n + 1)))) {
                 pi++;
                 if (pi == PARAM_LEN && (n == 0 || !isSafeIdentifierChar(exp.charAt(n - 1)))) {
                     return true; // we found a param access
@@ -112,13 +107,6 @@ public final class SpringStandardExpressionUtils {
                 return true;
             }
 
-            // Bean references: @beanName, and (Kedos) also SpEL's quoted form @'bean name' / @"bean name"
-            if (c == '@' &&
-                    ((n + 1 < explen) && isBeanReferenceStart(exp.charAt(n + 1))) &&
-                    (n == 0  || !isSafeIdentifierChar(exp.charAt(n - 1)))) {
-                return true;
-            }
-
         }
 
         return false;
@@ -126,51 +114,26 @@ public final class SpringStandardExpressionUtils {
     }
 
 
-    /*
-     * Replaces the contents of every complete SpEL string literal with 'x', keeping the quotes and the length.
-     * Mirrors org.springframework.expression.spel.standard.Tokenizer exactly: outside a literal, ' or " starts one;
-     * inside it, a doubled quote of the same kind is an escaped quote, and the next single quote of that kind ends
-     * it. No other escape exists, and no other SpEL token can contain a quote character. An unterminated literal
-     * (which SpEL refuses to parse) is left as it is, so its text is still scanned.
-     */
-    static String blankStringLiterals(final String expression) {
-        if (expression == null || (expression.indexOf('\'') < 0 && expression.indexOf('"') < 0)) {
-            return expression;
-        }
-        final char[] chars = expression.toCharArray();
-        int i = 0;
-        while (i < chars.length) {
-            final char quote = chars[i];
-            if (quote != '\'' && quote != '"') {
-                i++;
-                continue;
+    private static boolean containsBeanReferenceSymbol(final String exp) {
+        // '@' is always a bean reference token, and a single '&' (not part of an '&&' pair) a factory bean reference.
+        // Like all the other checks here, this also matches symbols in string literals.
+        final int explen = exp.length();
+        int ampersands = 0;
+        for (int i = 0; i < explen; i++) {
+            final char c = exp.charAt(i);
+            if (c == '@') {
+                return true;
             }
-            final int end = findLiteralEnd(chars, i, quote);
-            if (end < 0) {
-                break; // Unterminated: leave the rest untouched (conservative)
-            }
-            for (int j = i + 1; j < end; j++) {
-                chars[j] = 'x';
-            }
-            i = end + 1;
-        }
-        return new String(chars);
-    }
-
-
-    private static int findLiteralEnd(final char[] chars, final int start, final char quote) {
-        int i = start + 1;
-        while (i < chars.length) {
-            if (chars[i] == quote) {
-                if (i + 1 < chars.length && chars[i + 1] == quote) {
-                    i += 2; // Escaped quote, still inside the literal
-                    continue;
+            if (c == '&') {
+                ampersands++;
+            } else {
+                if (ampersands % 2 != 0) {
+                    return true;
                 }
-                return i;
+                ampersands = 0;
             }
-            i++;
         }
-        return -1;
+        return ampersands % 2 != 0;
     }
 
 
@@ -190,79 +153,6 @@ public final class SpringStandardExpressionUtils {
             }
         }
         return false;
-    }
-
-
-    /*
-     * Kedos: characters SpEL accepts right after the "new" keyword before the type name: whitespace, and '.'
-     * (eatPossiblyQualifiedId accepts a leading dot, so "new.java.util.Date()" is a constructor call).
-     */
-    private static boolean isNewKeywordFollower(final char c) {
-        return Character.isWhitespace(c) || c == '.';
-    }
-
-
-    /*
-     * Kedos: ExpressionUtils.normalize deletes control characters, which can join tokens that SpEL keeps apart
-     * (SpEL's tokenizer skips '\u0000', so "new\u0000java.util.Date()" is a constructor call, but normalizes to
-     * "newjava..."). Outside string literals (already blanked), control characters become spaces before
-     * normalization, so they still separate tokens for the scan.
-     */
-    static String separateControlCharacters(final String expression) {
-        if (expression == null) {
-            return null;
-        }
-        char[] chars = null;
-        for (int i = 0; i < expression.length(); i++) {
-            final char c = expression.charAt(i);
-            if ((c < '\u0020' || (c >= '\u007F' && c <= '\u009F')) && !Character.isWhitespace(c)) {
-                if (chars == null) {
-                    chars = expression.toCharArray();
-                }
-                chars[i] = ' ';
-            }
-        }
-        return (chars == null ? expression : new String(chars));
-    }
-
-
-    private static boolean isBeanReferenceStart(final char c) {
-        return isSafeIdentifierChar(c) || c == '\'' || c == '"';
-    }
-
-
-    /*
-     * Kedos: bean references as SpEL tokenizes and parses them (Tokenizer, InternalSpelExpressionParser
-     * .maybeEatBeanReference): a BEAN_REF token '@' or a FACTORY_BEAN_REF token '&' (a single '&'; '&&' is the
-     * logical AND token, consumed left to right), then, after any whitespace, an identifier or a string literal.
-     * Scanned left to right on the literal-blanked, normalized expression.
-     */
-    private static boolean containsBeanReference(final String exp) {
-        final int len = exp.length();
-        int i = 0;
-        while (i < len) {
-            final char c = exp.charAt(i);
-            if (c == '&' && i + 1 < len && exp.charAt(i + 1) == '&') {
-                i += 2; // Logical AND
-                continue;
-            }
-            if (c == '@' || c == '&') {
-                int j = i + 1;
-                while (j < len && Character.isWhitespace(exp.charAt(j))) {
-                    j++;
-                }
-                if (j < len && isBeanNameStart(exp.charAt(j))) {
-                    return true;
-                }
-            }
-            i++;
-        }
-        return false;
-    }
-
-
-    private static boolean isBeanNameStart(final char c) {
-        return Character.isLetter(c) || c == '_' || c == '$' || c == '\'' || c == '"';
     }
 
 

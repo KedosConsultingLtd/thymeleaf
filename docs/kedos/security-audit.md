@@ -1,5 +1,20 @@
 # Security audit of the Kedos performance changes (2026-11-09)
 
+## Update for 3.1.7.KEDOS-1 (2026-11-12)
+
+- **GHSA-f79q-9862-cq4c** (reported by Kedos, fixed upstream in 3.1.7): a cached expression could run with the
+  restrictions of an earlier, less restrictive evaluation context, e.g. one with `allowedClassOverridesForViews`.
+  This audit's accessor change (finding 1 below) only covered *interpreted* property access. Expressions compiled
+  by the SpEL compiler still leaked in `3.1.6.KEDOS-1` to `KEDOS-3`, as did method calls, instantiation and type
+  references. The earlier regression tests missed the compiled case because they warmed up only 3 renders, so SpEL
+  never compiled the expressions. Upstream's fix keys cached expressions by the override set, so contexts with
+  different restrictions never share an expression. It is merged here; the accessor change stays as a
+  performance change.
+- **New tests:** `ClassOverridesAcrossContextsTest` (200 warm-up renders, so the compiled path runs) and
+  `SPELRestrictedModeGateDifferentialTest` (the full restricted-mode check against SpEL's parser, for misses and
+  for string-literal false positives).
+- **This fork's own fixes for the 3.1.6 regressions** #1117 and #1118 were replaced by upstream's.
+
 ## Scope and method
 
 **Changes audited, against upstream `thymeleaf-3.1.6.RELEASE`:**
@@ -72,7 +87,9 @@ WebFlux application.
 
 | Test | Covers |
 |---|---|
-| `ACLPropertyAccessorCachingTest` (spring6) | Forbidden type after allowed type, in one render and across renders. Map keys beat getters. Bracket access across standalone, `ThymeleafEvaluationContext`, per-request override contexts and custom delegate contexts, in any order. Forbidden type through the indexer. 8-thread mixed-context stress run. All with and without the SpEL compiler. |
+| `ACLPropertyAccessorCachingTest` (spring6) | Forbidden type after allowed type, in one render and across renders. Map keys beat getters. Bracket access across standalone, `ThymeleafEvaluationContext`, per-request override contexts and custom delegate contexts, in any order. Forbidden type through the indexer. 8-thread mixed-context stress run. Each with the SpEL compiler on and off, but with only a few renders per expression, so nothing is actually compiled (see the 3.1.7.KEDOS-1 update). |
+| `ClassOverridesAcrossContextsTest` (spring6, 3.1.7.KEDOS-1) | GHSA-f79q-9862-cq4c: bracket, dot and method access to an overridden type stays forbidden in contexts without the override and in standalone rendering, after 200 renders with the override, with the SpEL compiler on and off. |
+| `SPELRestrictedModeGateDifferentialTest` (spring6, 3.1.7.KEDOS-1) | The restricted-mode check (text pre-check plus parsed confirmation) against SpEL's parser: no missed constructor, type, bean or `param` access, and no rejections caused only by string-literal contents. About 200,000 generated expressions (more via `-Dkedos.fuzz.expressions`), plus every BMP character in every slot of 25 token forms. |
 | `StaticRunCoalescingParseFilterTest` (core) | Switched-mode inlining under an ancestor `th:inline` (`[# th:if]`, `/*[- -]*/`, `/*[+ +]*/`, CSS, text). Runtime-string parses unfiltered (`IModelFactory.parse`, `th:utext` with a post-processor). Untrusted model-processor dialect disables coalescing; a trusted one is allowed. Nesting depths 255, 257 and 20,000. |
 | `StandardLinkBuilderEquivalenceTest` (core) | The unmodified 3.1.6 builder is the oracle: about 5,000 base/parameter/context-path combinations on both the copy and copy-free paths, null keys, identity/concurrent/tree maps, and a mutating `computeContextPath` override. |
 

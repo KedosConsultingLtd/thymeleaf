@@ -1,10 +1,10 @@
 # Publishes a Kedos build of thymeleaf + thymeleaf-spring6 to GitHub Packages.
 #
 # Triggers (either):
-#   - push a tag that is the version itself, e.g. 3.1.6.KEDOS-1; or
+#   - push a tag that is the version itself, e.g. 3.1.7.KEDOS-1; or
 #   - run the workflow manually (Actions -> kedos-publish -> Run workflow) with the version. It publishes the
 #     commit it runs on and, once publishing has succeeded, creates and pushes the version tag itself.
-# The committed POMs keep the upstream version (3.1.6.RELEASE) so upstream merges stay clean; the Kedos version is
+# The committed POMs keep the upstream version (e.g. 3.1.7.RELEASE) so upstream merges stay clean; the Kedos version is
 # applied at build time. Upstream's own release path (central-publishing-maven-plugin, GPG signing) is never used:
 # artifacts are installed locally and then pushed with deploy:deploy-file to GitHub Packages only.
 #
@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Kedos version to publish, e.g. 3.1.6.KEDOS-1 (the tag is created after publishing)'
+        description: 'Kedos version to publish, e.g. 3.1.7.KEDOS-1 (the tag is created after publishing)'
         required: true
         type: string
 
@@ -65,7 +65,7 @@ jobs:
             VERSION="$GITHUB_REF_NAME"
           fi
           if ! echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.KEDOS-[0-9]+$'; then
-            echo "Version must look like 3.1.6.KEDOS-1 (got $VERSION)" >&2
+            echo "Version must look like 3.1.7.KEDOS-1 (got $VERSION)" >&2
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"

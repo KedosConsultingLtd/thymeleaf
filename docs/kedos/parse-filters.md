@@ -1,6 +1,6 @@
 # Parse filters and parse-time whitespace collapsing
 
-Kedos addition to Thymeleaf 3.1.6. Off unless a dialect enables it, so upstream behaviour is unchanged by default.
+Kedos addition to Thymeleaf 3.1 (since 3.1.6.KEDOS-1). Off unless a dialect enables it, so upstream behaviour is unchanged by default.
 
 ## What it is
 
